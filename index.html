@@ -220,7 +220,7 @@ dialog.modal::backdrop{background:rgba(10,16,13,.45)}
 .m-note{grid-column:1/-1;font-size:14px;color:var(--muted);margin:0;line-height:1.55}
 .err{grid-column:1/-1;color:var(--bad);font-size:13px;margin:0}
 
-.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;z-index:50;font-size:14px;max-width:calc(100% - 32px);box-shadow:0 6px 20px rgba(0,0,0,.2)}
+.toast{inset:auto auto 20px 50%;margin:0;border:0;position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;z-index:50;font-size:14px;max-width:calc(100% - 32px);box-shadow:0 6px 20px rgba(0,0,0,.2)}
 
 .progress{height:8px;border-radius:4px;background:var(--bg);overflow:hidden;border:1px solid var(--line)}
 .progress i{display:block;height:100%;background:var(--accent)}
@@ -604,7 +604,7 @@ function deepMerge(a,b){ for(const k in b){ const v=b[k]; if(v && typeof v==='ob
 function who(u){ if(!u) return 'Registro inicial'; return S.usuarios?.[u]?.nombre || S.names[u] || (u===S.me?S.myName:'') || S.usuarios?.[u]?.email || 'Usuario anterior'; }
 function nameOf(u){ return u?who(u):''; }
 let toastT;
-function toast(msg){ let t=$('.toast'); if(!t){ t=document.createElement('div'); t.className='toast'; t.setAttribute('role','status'); document.body.appendChild(t);} t.textContent=msg; clearTimeout(toastT); toastT=setTimeout(()=>t.remove(),3600); }
+function toast(msg){ let t=$('.toast'); if(!t){ t=document.createElement('div'); t.className='toast'; t.setAttribute('role','status'); document.body.appendChild(t);} t.textContent=msg; const host=[...document.querySelectorAll('dialog[open]')].at(-1)||document.body; if(t.parentElement!==host)host.appendChild(t); t.setAttribute('popover','manual'); if(t.matches(':popover-open'))t.hidePopover(); t.showPopover(); clearTimeout(toastT); toastT=setTimeout(()=>t.remove(),3600); }
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 const safeId = s => { let x=String(s).trim().replace(/[^A-Za-z0-9_\-.~:@+]/g,'_').slice(0,180); if(x==='.'||x==='..'||!x) x='id_'+uid(); return x; };
 
@@ -891,7 +891,7 @@ function doRender(){
   m.classList.toggle('toma-modulo',S.view==='inventario');
   let html = subNav() + banners();
   if(S.mode==='loading' || (DB && !(S.loaded.bienes && S.loaded.mantenimientos && S.loaded.tomas && S.loaded.sistemas && S.loaded.equipos && S.loaded.planos))) html += `<div class="card empty">Cargando registros…</div>`;
-  else html += ({configuracion:vConfiguracion,usuarios:vUsuariosPantalla,respaldo:vRespaldo,resumen:vInicio, bienes:vBienes, ciclo:vCiclo, mantenimientos:vMant, sistemas:vSistemas, planos:vPlanos, inventario:vInv, espacios:()=>S.espVista==='planos'?vPlanos():vEspacios(), areas:vAreas, personas:vPersonas, tipos:vTipos, proveedores:vProveedores, planes:vPlanes, fallas:vFallas, gastos:vCostos, reposicion:vReposicion, presupuesto:vPresupuesto, ordenesCompra:vOrdenesCompra, contratos:vContratos, listas:vListas, conciliacion:vConciliacion, cierreFormal:vCierreFormal}[S.view]||vResumen)();
+  else html += ({configuracion:vConfiguracion,usuarios:vUsuariosPantalla,respaldo:vRespaldo,resumen:vInicio, bienes:vBienes, ciclo:vCiclo, mantenimientos:vMant, sistemas:vSistemas, planos:vPlanos, inventario:vInv, espacios:()=>S.espVista==='planos'?vPlanosConsultaUI():vEspacios(), areas:vAreas, personas:vPersonas, tipos:vTipos, proveedores:vProveedores, planes:vPlanes, fallas:vFallas, gastos:vCostos, reposicion:vReposicion, presupuesto:vPresupuesto, ordenesCompra:vOrdenesCompra, contratos:vContratos, listas:vListas, conciliacion:vConciliacion, cierreFormal:vCierreFormal}[S.view]||vResumen)();
   const kept=false; m.innerHTML=html;
   if(S.sel) renderDrawer();
   if(!kept && $('#scanres')) renderScanRes();
@@ -1793,9 +1793,73 @@ function planoHtml(p, o={}){
   const amb=(p.ambientes||[]).map(a=>{ const n=o.counts?(o.counts[a.id]||0):null; const tot=o.tot?(o.tot[a.id]||0):null;
     const fill = o.counts ? Math.min(1, n/Math.max(1,tot||n||1)) : 0;
     const tag = o.act ? 'button' : 'div';
-    return `<${tag} class="amb ${o.hl===a.id?'hl':''} ${o.counts&&n?'has':''} ${a.revisar&&o.edit?'rev':''} ${a.zona&&/^Almac/.test(a.zona)?'za':''}" style="left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;${o.counts?`--f:${(0.10+fill*0.45).toFixed(2)}`:''}" ${o.act?`type="button" data-act="${o.act}" data-id="${esc(a.id)}" data-pl="${esc(p.id)}"`:''} title="${esc(a.nombre)}"><span>${esc(a.nombre)}</span>${n!=null?`<b class="num">${n}${tot?`/${tot}`:''}</b>`:''}</${tag}>`; }).join('');
+    return `<${tag} class="amb ${o.hl===a.id?'hl':''} ${o.counts&&n?'has':''} ${a.revisar&&o.edit?'rev':''} ${a.zona&&/^Almac/.test(a.zona)?'za':''}" style="left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;${o.counts?`--f:${(0.10+fill*0.45).toFixed(2)}`:''}" ${o.act?`type="button" data-act="${o.act}" data-id="${esc(a.id)}" data-pl="${esc(p.id)}"`:''} title="${esc(a.nombre)}"><span>${esc(a.nombre)}</span>${n!=null&&(!o.ocultarCeros||n>0)?`<b class="num">${n}${tot?`/${tot}`:''}</b>`:''}</${tag}>`; }).join('');
   return `<div class="plano ${o.edit?'edit':''} ${o.mini?'mini':''} ${(S.cuadEdit||S.subEdit)&&o.edit?'qedit':''}" data-plano="${esc(p.id)}" style="aspect-ratio:${p.ar||1.6}">${p.img?`<img src="${esc(imgSrc(p.img))}" alt="Plano ${esc(planoNombre(p))}" draggable="false">`:'<div class="grid-bg"></div>'}${amb}${cuadHtml(p)}${o.mark?`<span class="qmark" style="left:${o.mark[0]}%;top:${o.mark[1]}%"></span>`:''}</div>`;
 }
+// Agrupación de consulta: solo zonas registradas y vínculos existentes del catálogo.
+function edificiosPlanosUI() {
+  const grupos = new Map(), E = espacios();
+  for (const p of planos()) {
+    const relaciones = E.filter(e => e.plano === p.id).flatMap(e => {
+      const vistos = new Set();
+      while (e && e.nivel !== 'edificio' && !vistos.has(e.id)) {
+        vistos.add(e.id);
+        e = E.find(x => x.id === e.padre);
+      }
+      return e?.nivel === 'edificio' ? [e] : [];
+    });
+    const zonas = [...new Set([p.zona, ...(p.ambientes || []).map(a => a.zona)].filter(Boolean))];
+    const destinos = relaciones.map(e => ({key:e.id, nombre:e.nombre, zona:e.zona || edifZona(e.nombre)}));
+    for (const zona of zonas) {
+      if (destinos.some(e => e.zona === zona)) continue;
+      const ed = E.find(e => e.nivel === 'edificio' && (e.zona === zona || edifZona(e.nombre) && edifZona(e.nombre) === edifZona(zona)));
+      destinos.push({key:ed?.id || JSON.stringify([p.marco || '', zona]), nombre:ed?.nombre || zona, zona});
+    }
+    if (!destinos.length) destinos.push({key:'sin-edificio', nombre:'Planos sin edificio vinculado', zona:''});
+    for (const d of destinos) {
+      if (!grupos.has(d.key)) grupos.set(d.key, {...d, planos:[]});
+      const g = grupos.get(d.key);
+      if (!g.planos.some(x => x.id === p.id)) g.planos.push(p);
+    }
+  }
+  return [...grupos.values()];
+}
+function rutaPlanoUI(edificio='', nivel='', ambiente='') {
+  const q = new URLSearchParams({vista:'planos'});
+  if (edificio) q.set('edificio', edificio);
+  if (nivel) q.set('nivel', nivel);
+  if (ambiente) q.set('ambiente', ambiente);
+  return '#' + RUTAS.espacios + '?' + q;
+}
+function listaAmpliableUI(items, pintar, limite=8) {
+  return items.slice(0, limite).map(pintar).join('') + (items.length > limite
+    ? `<details data-ver-mas><summary class="btn">Ver más (${items.length - limite})</summary>${items.slice(limite).map(pintar).join('')}</details>` : '');
+}
+function vPlanosConsultaUI() {
+  const G = edificiosPlanosUI(), g = G.find(x => x.key === S.plEd),
+    p = g?.planos.find(x => x.id === S.plSel) || g?.planos[0];
+  const cab = '<div class="row between"><h2>Planos</h2><div class="row"><a class="btn" href="#'+RUTAS.espacios+'">Ir a Espacios</a>'+(!g&&!S.readonly?'<button class="btn ro-hide" data-act="plEditarUI" data-id="">Administrar planos</button>':'')+'</div></div>';
+  if (S.plEditar) return cab + '<button class="btn" data-act="plConsultaUI">Volver a consultar planos</button>' + vPlanos();
+  if (!g) return cab + '<p>Elige un edificio para consultar sus planos registrados.</p><div class="cols">' +
+    G.map(x => `<a class="kcard" data-pl-edificio="${esc(x.key)}" href="${esc(rutaPlanoUI(x.key, x.planos[0].id))}"><b>${esc(x.nombre)}</b><span class="small muted">${x.planos.length} planos registrados</span></a>`).join('') + '</div>' +
+    (!G.length ? '<p>No hay planos registrados.</p>' : '');
+  const tabs = `<nav class="v2-tabs" aria-label="Niveles de ${esc(g.nombre)}">${g.planos.map(x => `<a class="btn ${x.id === p.id ? 'primary' : ''}" data-pl-nivel="${esc(x.id)}" aria-current="${x.id === p.id ? 'page' : 'false'}" href="${esc(rutaPlanoUI(g.key,x.id))}">${esc(planoNombre(x))}</a>`).join('')}</nav>`;
+  const A = (p.ambientes || []).filter(a => !g.zona || (a.zona || p.zona) === g.zona),
+    ambiente = A.find(a => a.id === S.plAmb),
+    cnt = {};
+  for (const b of bienes()) if (b.amb?.startsWith(p.id + '/')) {
+    const aid = b.amb.slice(p.id.length + 1); cnt[aid] = (cnt[aid] || 0) + 1;
+  }
+  const nivel = `<div class="row between"><div><h3>${esc(g.nombre)} · ${esc(planoNombre(p))}</h3><div class="mono small muted">${esc(p.id)}</div></div><details class="menu right"><summary class="btn" aria-label="Más acciones del plano">⋮</summary><div class="menu-list" role="menu"><button class="mi ro-hide" role="menuitem" data-act="plImagen" data-id="${esc(p.id)}">${p.img ? 'Cambiar imagen' : 'Agregar imagen'}</button><button class="mi ro-hide" role="menuitem" data-act="plEditarUI" data-id="${esc(p.id)}">Editar plano y ambientes</button></div></details></div>`;
+  if (ambiente) {
+    const B = bienes().filter(b => b.amb === p.id + '/' + ambiente.id);
+    return cab + tabs + nivel + `<h3>${esc(ambiente.nombre)}</h3><a class="btn" href="${esc(rutaPlanoUI(g.key,p.id))}">Volver al nivel</a><p>${B.length} bienes ubicados aquí.</p>` +
+      listaAmpliableUI(B, b => `<p data-pl-bien><button class="btn link" data-act="openBien" data-id="${esc(b.id)}">${esc(b.codigo || b.id)} · ${esc(b.nombre)}</button></p>`);
+  }
+  return cab + tabs + nivel + planoHtml({...p,ambientes:A},{act:'plAmbienteUI',counts:cnt,ocultarCeros:true}).replaceAll('data-act="plAmbienteUI"','data-ui="plAmbienteUI"') +
+    '<section class="card"><h3>Ambientes</h3><div class="row">' + listaAmpliableUI(A, a => `<button class="fchip" data-ui="plAmbienteUI" data-id="${esc(a.id)}" data-pl="${esc(p.id)}">${esc(a.nombre)}${cnt[a.id] ? ` <span class="num">· ${cnt[a.id]}</span>` : ''}</button>`) + '</div></section>';
+}
+
 function vPlanos(){
   if(S.plSel && S.data.planos?.[S.plSel]) return vPlano(S.plSel);
   const P=planos(); const usados={}; bienes().forEach(b=>{ if(b.amb){ const pid=b.amb.split('/')[0]; usados[pid]=(usados[pid]||0)+1; } });
@@ -1825,8 +1889,8 @@ async function subirImagen(file){
   return {error:'Solo los editores de la página pueden subir imágenes. Puedes crear el plano como croquis y otra persona agrega la imagen después.'};
 }
 const PL_ACT = {
-  plOpen(id){ S.plSel=id; S.espVista='planos'; location.hash=RUTAS.planos; render(); },
-  plVolver(){ S.plSel=null; render(); },
+  plOpen(id){ if(S.plEditar){S.plSel=id;render();return;} const G=edificiosPlanosUI(),g=G.find(x=>x.key===S.plEd&&x.planos.some(p=>p.id===id))||G.find(x=>x.planos.some(p=>p.id===id)); if(g)location.hash=rutaPlanoUI(g.key,id); },
+  plVolver(){ if(S.plEditar){S.plSel=null;render();}else location.hash=rutaPlanoUI(); },
   plNuevo(){ openForm({title:'Nuevo plano', note:'Uno por piso. La imagen es opcional: sin ella se dibuja un croquis sobre una cuadrícula.', fields:[{k:'zona',l:'Zona',t:'select',opts:SEDES.LIM.zonas,req:true}, {k:'piso',l:'Piso',req:true,ph:'Ej.: 1, 2, Sótano'}, {k:'img',l:'Imagen del plano (PNG o JPG)',t:'file',accept:'image/png,image/jpeg,image/webp',full:true,help:'Acepta PNG o JPG; la imagen se comprime antes de guardarla.'}],
     submit:async v=>{ const id=safeId(`LIM-${zonaCorta(v.zona)==='Almacenes'?'ALM':'CCB'}-P${v.piso}`); if(S.data.planos?.[id]) return {error:'Ya existe un plano para esa zona y piso.'};
       let img=null, ar=1.6; if(v.img){ modalProgress('Subiendo imagen…'); const r=await subirImagen(v.img); if(r.error) return r; img=r.img; ar=r.ar; }
@@ -2970,7 +3034,11 @@ function espPropuesta(){
  return out.map(e=>({activo:true,alias:[],tipoAmbiente:'',areaId:'',...e,creado:now,u:S.me||null,origen:'catálogo inicial'}));
 }
 function espFaltantes(){const E=S.data.espacios||{};return espPropuesta().filter(e=>!E[e.id]);}
-function espFila(e,n){return `<tr><td><button type="button" class="btn link" data-act="espVer" data-id="${esc(e.id)}">${esc(e.nombre)}</button>${e.activo===false?' '+chip('Inactivo',''):''}${(e.alias||[]).length?`<div class="small muted">También: ${esc(e.alias.join(', '))}</div>`:''}</td><td>${esc(e.tipoAmbiente||'—')}</td><td class="num">${n}</td><td class="small muted">${esc(e.id)}</td><td class="ro-hide">${S.admin?`<button type="button" class="btn ghost" data-act="espEditar" data-id="${esc(e.id)}">Editar</button>`:''}</td></tr>`;}
+function tablaAmbientesUI(A) {
+ const tabla = L => `<div class="tbl-wrap"><table class="stk"><thead><tr><th>Ambiente</th><th>Tipo</th><th>Bienes</th><th>Código</th><th></th></tr></thead><tbody>${L.map(a=>espFila(a,espBienesDe(a).length)).join('')}</tbody></table></div>`;
+ return tabla(A.slice(0,8))+(A.length>8?`<details data-ver-mas><summary class="btn">Ver más (${A.length-8})</summary>${tabla(A.slice(8))}</details>`:'');
+}
+function espFila(e,n){return `<tr><td><button type="button" class="btn link" data-act="espVer" data-id="${esc(e.id)}">${esc(e.nombre)}</button>${e.activo===false?' '+chip('Inactivo',''):''}${(e.alias||[]).length?`<div class="small muted">También: ${esc(e.alias.join(', '))}</div>`:''}</td><td>${esc(e.tipoAmbiente||'—')}</td><td class="num">${n || '<span class="muted" aria-label="Sin bienes">—</span>'}</td><td class="small muted">${esc(e.id)}</td><td class="ro-hide">${S.admin?`<button type="button" class="btn ghost" data-act="espEditar" data-id="${esc(e.id)}">Editar</button>`:''}</td></tr>`;}
 function vEspacios(){
  const E=espacios(),q=nrm(S.espQ||''),falt=S.admin?espFaltantes():[];
  const sedes=espHijos(null);if(!S.espSede||!S.data.espacios?.[S.espSede])S.espSede=sedes[0]?.id||null;
@@ -2980,7 +3048,7 @@ function vEspacios(){
  const tabs=`<div class="row" role="tablist" style="flex-wrap:wrap;gap:6px">${sedes.map(s=>`<button type="button" class="btn ${s.id===S.espSede?'primary':''}" data-act="espSede" data-id="${esc(s.id)}">${esc(s.nombre)} <span class="small">(${espBienesDe(s).length})</span></button>`).join('')}</div>`;
  const buscar=`<label class="small" style="display:block;margin-top:8px;max-width:460px">Buscar ambiente<input class="inp" style="width:100%" id="esp-q" value="${esc(S.espQ||'')}" placeholder="Nombre o nombre usado en campo"></label>`;
  const edificios=sede?espHijos(sede.id):[];
- const cuerpo=edificios.map(ed=>{const pisos=espHijos(ed.id);return `<div class="card"><div class="card-h"><h3>${esc(ed.nombre)}</h3><div class="row"><span class="small muted">${espBienesDe(ed).length} bienes · ${pisos.length} pisos</span>${S.admin?`<button type="button" class="btn ghost ro-hide" data-act="espEditar" data-id="${esc(ed.id)}">Editar</button><button type="button" class="btn ro-hide" data-act="espNuevo" data-id="${esc(ed.id)}">Agregar piso</button>`:''}</div></div>${pisos.map(pi=>{const A=espHijos(pi.id).filter(a=>!q||nrm(a.nombre).includes(q)||(a.alias||[]).some(x=>nrm(x).includes(q)));if(q&&!A.length)return '';return `<details ${q||S.espAbierto===pi.id?'open':''} data-esp-piso="${esc(pi.id)}"><summary><b>${esc(pi.nombre)}</b> <span class="small muted">· ${espHijos(pi.id).length} ambientes · ${espBienesDe(pi).length} bienes</span></summary><div class="row" style="justify-content:flex-end;gap:6px">${S.admin?`<button type="button" class="btn ghost ro-hide" data-act="espEditar" data-id="${esc(pi.id)}">Editar piso</button><button type="button" class="btn ro-hide" data-act="espNuevo" data-id="${esc(pi.id)}">Agregar ambiente</button>`:''}</div>${A.length?`<div class="tbl-wrap"><table class="stk"><thead><tr><th>Ambiente</th><th>Tipo</th><th>Bienes</th><th>Código</th><th></th></tr></thead><tbody>${A.map(a=>espFila(a,espBienesDe(a).length)).join('')}</tbody></table></div>`:'<p class="small muted">Sin ambientes registrados.</p>'}</details>`;}).join('')||'<p class="small muted">Sin pisos registrados.</p>'}</div>`;}).join('');
+ const cuerpo=edificios.map(ed=>{const pisos=espHijos(ed.id);return `<div class="card"><div class="card-h"><h3>${esc(ed.nombre)}</h3><div class="row"><span class="small muted">${espBienesDe(ed).length ? espBienesDe(ed).length+' bienes · ' : ''}${pisos.length} pisos</span>${S.admin?`<button type="button" class="btn ghost ro-hide" data-act="espEditar" data-id="${esc(ed.id)}">Editar</button><button type="button" class="btn ro-hide" data-act="espNuevo" data-id="${esc(ed.id)}">Agregar piso</button>`:''}</div></div>${pisos.map(pi=>{const A=espHijos(pi.id).filter(a=>!q||nrm(a.nombre).includes(q)||(a.alias||[]).some(x=>nrm(x).includes(q)));if(q&&!A.length)return '';return `<details ${q||S.espAbierto===pi.id?'open':''} data-esp-piso="${esc(pi.id)}"><summary><b>${esc(pi.nombre)}</b> <span class="small muted">· ${espHijos(pi.id).length} ambientes${espBienesDe(pi).length ? ' · '+espBienesDe(pi).length+' bienes' : ''}</span></summary><div class="row" style="justify-content:flex-end;gap:6px">${S.admin?`<button type="button" class="btn ghost ro-hide" data-act="espEditar" data-id="${esc(pi.id)}">Editar piso</button><button type="button" class="btn ro-hide" data-act="espNuevo" data-id="${esc(pi.id)}">Agregar ambiente</button>`:''}</div>${A.length?tablaAmbientesUI(A):'<p class="small muted">Sin ambientes registrados.</p>'}</details>`;}).join('')||'<p class="small muted">Sin pisos registrados.</p>'}</div>`;}).join('');
  return cab+tabs+buscar+(cuerpo||'<div class="card empty">Esta sede aún no tiene edificios.</div>')+(sede&&S.admin?`<div class="row ro-hide" style="margin-top:8px"><button type="button" class="btn" data-act="espNuevo" data-id="${esc(sede.id)}">Agregar edificio en ${esc(sede.nombre)}</button></div>`:'');
 }
 const ESP_HIJO={sede:'edificio',edificio:'piso',piso:'ambiente'};
@@ -3854,9 +3922,39 @@ function cfHojasInforme(V){const R=V.resumen,f=V.formato.entidad,firmas=[...f.fi
  // rcHojas genera el detalle congelado; se reemplazan sus metadatos de presentación por los de esta versión.
  const anexos=rcHojas(V.anexo).slice(1).map(sh=>{const body=sh.rows.slice(7,-5);return hoja(sh.name,sh.rows[6].map(c=>c.v??c),body,sh.cols);});return [resumen,porCR,estados,inventariadores,...anexos];}
 function cfHojasCustodios(t,G,formato=ocFormato(),config=cfConfig()){const f=G.flatMap(g=>g.bienes.map(b=>({g,b}))),head=n=>[[{v:formato.razonSocial,s:'t'}],[`RUC ${formato.ruc}`],[t.nombre],[`Bienes por custodio · ${today()}`],[{v:n,s:'lab'}]],firmas=[[],['Responsable del inventario',config.nombre,config.cargo]];return [{name:'Resumen',cols:[40,30,40,22,18],rows:[...head('Resumen'),['Custodio','Cargo','Áreas','Fuente','Bienes'],...G.map(g=>[g.nombre,g.cargo,g.areas.map(a=>a.nombre).join(' · '),g.fuentes.join(' · '),g.bienes.length]),...firmas],freeze:6},{name:'Detalle',cols:[40,14,24,24,50,20,22,22,45,22,22,22,30],rows:[...head('Detalle'),['Custodio','ID','Código ADM','Código contable','Descripción','Marca','Modelo','Serie','Ubicación','Conservación','Operatividad','CR','Área'],...f.map(({g,b})=>[g.nombre,b.idEtq,b.codigo,b.codCont,b.descripcion,b.marca,b.modelo,b.serie,b.ubicacion,b.conservacion,b.operatividad,b.cr,b.area]),...firmas],freeze:6}];}
+// Listas de consulta: se usan los mismos predicados de cfChecklist, sin escrituras.
+function cfListaResolverUI(tipo, t, F=cfFilas(t), c=cfChecklist(t,F)) {
+  if (tipo === 'cr') return c.abiertos.map(cr => ({codigo:cr,nombre:nombreCR(cr)}));
+  if (tipo === 'dudas') return dudasToma(t.id,'abierta').map(d => ({codigo:d.bienId || d.id,nombre:d.texto}));
+  if (tipo === 'notas') return vivos(S.data.conciliacionNotas).filter(n => n.id.startsWith(encodeURIComponent(t.id)+'__') && n.estado !== 'aclarado').map(n => ({codigo:n.id,nombre:n.texto}));
+  return F.filter(b => b.fuente === (tipo === 'sinPersona' ? 'ninguna' : 'sinVincular')).map(b => ({codigo:b.codigo || b.id,nombre:b.descripcion,persona:b.persona}));
+}
+function cfPanelUI(t,F,c) {
+  const tarjeta = (tipo,titulo,n) => `<article class="card" data-cf-cifra="${tipo}"><h3>${titulo}: ${n}</h3><button class="btn" data-ui="cfResolverUI" data-id="${tipo}">${n ? 'Resolver' : 'Consultar'}</button></article>`;
+  return `<section data-cf-checklist><div class="cols">${tarjeta('dudas','Dudas abiertas',c.dudas)}${tarjeta('notas','Notas de conciliación pendientes',c.notasPendientes)}<article class="card"><h3>Persona a cargo</h3><p>${c.sinPersona} sin persona · ${c.sinVincular} con texto sin vincular</p><div class="row">${['sinPersona','sinVincular'].map((tipo,i) => `<button class="btn" data-ui="cfResolverUI" data-id="${tipo}">${c[tipo] ? 'Resolver' : 'Consultar'} ${i ? 'texto sin vincular' : 'sin persona'}</button>`).join('')}</div></article></div><p>Registro contable seleccionado: ${c.registro ? 'Sí' : 'No'} <button class="btn link" data-act="cfIrConciliacion">${c.registro ? 'Consultar' : 'Seleccionar registro'}</button></p><p data-importante>Cierre por CR: ${c.cerrados} / ${c.totalCR} cerrados${c.abiertos.length ? ' · '+c.abiertos.length+' abiertos' : ''}. Los CR abiertos mantienen el informe PRELIMINAR.</p><details data-cf-cierre-cr><summary>Cierre contable por CR · ${c.cerrados} / ${c.totalCR} cerrados</summary><div class="card">${listaAmpliableUI(c.crs,cr => `<p data-cf-cr>${esc(nombreCR(cr))} · ${c.abiertos.includes(cr) ? 'Abierto' : 'Cerrado'}</p>`)}<button class="btn" data-ui="cfResolverUI" data-id="cr">${c.abiertos.length ? 'Resolver' : 'Consultar'} CR abiertos (${c.abiertos.length})</button><button class="btn" data-act="cfIrToma">Ir a la toma</button></div></details></section>`;
+}
+function cfResolverUI(tipo) {
+    const t={id:S.cfToma,...S.data.tomas[S.cfToma]}, L=cfListaResolverUI(tipo,t),
+      titulos={cr:'CR abiertos',dudas:'Dudas abiertas',notas:'Notas de conciliación pendientes',sinPersona:'Bienes sin persona',sinVincular:'Bienes con texto sin vincular'};
+    if (!titulos[tipo]) return;
+    openForm({title:titulos[tipo],wide:true,fields:[],note:`<p>${L.length} elementos · ${esc(t.nombre)}</p><div class="tbl-wrap"><table><thead><tr><th>Código</th><th>Detalle</th><th>Persona</th></tr></thead><tbody>${L.map(x => `<tr data-cf-resolver-fila><td>${esc(x.codigo)}</td><td>${esc(x.nombre || '')}</td><td>${esc(x.persona || '')}</td></tr>`).join('')}</tbody></table></div>${!L.length ? '<p>No hay elementos pendientes.</p>' : ''}`,ok:'Cerrar',submit:()=>{}});
+    formCtx.lectura=true;
+}
+function plAmbienteUI(aid,el) { location.hash=rutaPlanoUI(S.plEd,el.dataset.pl,aid); }
+Object.assign(ACT,{
+  plConsultaUI() { S.plEditar=false;render(); },
+  plEditarUI(id) { S.plEditar=true;S.plSel=id;render(); }
+});
+document.addEventListener('click',e=>{
+  const el=e.target.closest('[data-ui=cfResolverUI],[data-ui=plAmbienteUI]');
+  if(!el)return;
+  if(el.dataset.ui==='cfResolverUI')cfResolverUI(el.dataset.id);
+  else plAmbienteUI(el.dataset.id,el);
+});
+
 function cfChecklistHtml(c){const punto=(listo,titulo,detalle,act,attrs='')=>`<li>${listo?'✓ Listo':'● Pendiente'} — <b>${titulo}</b>: ${esc(detalle)} <button class="btn link small" data-act="${act}" ${attrs}>${listo?'Consultar':'Resolver'}</button></li>`;return `<ul data-cf-checklist>${punto(c.totalCR>0&&!c.abiertos.length,'Cierre por CR',`${c.cerrados} / ${c.totalCR} cerrados${c.abiertos.length?' · Abiertos: '+c.abiertos.join(', '):''}`,'cfIrToma')}${punto(!c.dudas,'Dudas abiertas',String(c.dudas),'cfIrDudas')}${punto(c.registro,'Registro contable seleccionado',c.registro?'Sí':'No','cfIrConciliacion')}${punto(!c.notasPendientes,'Notas de conciliación pendientes',String(c.notasPendientes),'cfIrConciliacion')}${punto(!c.sinPersona&&!c.sinVincular,'Persona a cargo',`${c.sinPersona} sin persona · ${c.sinVincular} con texto sin vincular`,'cfPersonas')}</ul>`;}
 function vCierreFormal(){cfDefaults();const cab=`<div class="row between"><h2>Informe y actas</h2>${S.admin&&!S.readonly?'<button class="btn" data-act="cfConfig">Responsable y compromiso</button>':''}</div><p>Informe y actas de consulta. Los cierres por CR conservan el bloqueo del inventario.</p><div class="filters">${ecoSelect('cf-toma','Toma para cierre formal',tomas().map(t=>[t.id,t.nombre]),S.cfToma)}${ecoSelect('cf-base','Registro contable del informe',[['','Sin registro contable seleccionado'],...rcRegistros().filter(r=>r.tipo==='base').map(r=>[r.id,r.periodo+' · '+r.archivo])],S.cfBase||'')}</div><fieldset><legend>Altas contables incluidas</legend>${rcRegistros().filter(r=>r.tipo==='altas').map(r=>`<label style="display:block"><input type="checkbox" data-cf-alta="${esc(r.id)}" ${S.cfAltas.includes(r.id)?'checked':''}>${esc(r.periodo+' · '+r.archivo)}</label>`).join('')||'Ninguna'}</fieldset>`;if(!S.cfToma)return cab+'<p>No hay tomas para consultar.</p>';if(S.cfError)return cab+`<p class="err">${esc(S.cfError)}</p><button class="btn" data-act="cfRecargar">Reintentar lectura</button>`;if(S.cfPreparada!==cfClave()){if(!S.cfCargando)setTimeout(cfPreparar,0);return cab+'<p>Cargando información del cierre…</p>';}
- const t={id:S.cfToma,...S.data.tomas[S.cfToma]},F=cfFilas(t),c=cfChecklist(t,F),G=cfCustodios(t,F,{cr:S.cfCR||'',areaId:S.cfArea||''});S.cfGrupos=G;return cab+`<h3>Estado: ${c.estado.toUpperCase()}</h3>${cfChecklistHtml(c)}${S.admin&&!S.readonly?'<button class="btn primary" data-act="cfGenerar">Generar informe</button>':''}<h3>Historial de versiones</h3><div class="tbl-wrap"><table><thead><tr><th>Versión</th><th>Fecha</th><th>Estado</th><th>Aprobación</th><th>Acciones</th></tr></thead><tbody>${cfVersiones(t.id).map(v=>`<tr><td>v${v.version}</td><td>${fmtDT(v.fecha)}</td><td>${v.estado.toUpperCase()}</td><td>${v.aprobacion?'Aprobada por '+esc(v.aprobacion.nombre):'Pendiente'}</td><td><div class="row"><button class="btn sm" data-act="cfVerVersion" data-id="${esc(v.id)}">Ver versión</button><button class="btn sm" data-act="cfImprimirVersion" data-id="${esc(v.id)}">Imprimir informe</button><button class="btn sm" data-act="cfExcelVersion" data-id="${esc(v.id)}">Excel del informe</button>${S.admin&&!S.readonly&&!v.aprobacion?`<button class="btn sm" data-act="cfAprobar" data-id="${esc(v.id)}">Aprobar versión</button>`:''}</div></td></tr>`).join('')||'<tr><td colspan="5">Todavía no hay versiones guardadas.</td></tr>'}</tbody></table></div><h3>Actas de asignación por custodio</h3><div class="filters">${ecoSelect('cf-area','Filtrar actas por área',[['','Todas las áreas'],...areas().map(a=>[a.id,a.nombre])],S.cfArea||'')}${ecoSelect('cf-cr','Filtrar actas por CR',[['','Todos los CR'],...c.crs.map(cr=>[cr,nombreCR(cr)])],S.cfCR||'')}</div><div class="row"><button class="btn" data-act="cfPersonas">Ver custodios sin vincular</button>${S.admin&&!S.readonly?'<button class="btn" data-act="cfTodas">Imprimir todas</button><button class="btn" data-act="cfExcelCustodios">Excel Bienes por custodio</button>':''}</div><div class="tbl-wrap"><table><thead><tr><th>Custodio</th><th>Bienes encontrados</th><th>Área</th><th>Fuente</th><th></th></tr></thead><tbody>${G.map(g=>`<tr><td>${esc(g.nombre)}<div>${esc(g.cargo)}</div></td><td>${g.bienes.length}</td><td>${esc(g.areas.map(a=>a.nombre).join(' · '))}</td><td>${esc(g.fuentes.join(' · '))}</td><td>${S.admin&&!S.readonly&&g.key!=='SIN-PERSONA'?`<button class="btn sm" data-act="cfActa" data-id="${esc(g.key)}">Ver e imprimir acta</button>`:''}</td></tr>`).join('')}</tbody></table></div><p class="small muted">Solo se incluyen bienes Encontrados. Los que no tienen persona se listan para resolverlos y no generan acta. Cada custodio inicia una página; las relaciones extensas continúan en hojas siguientes.</p>`;}
+ const t={id:S.cfToma,...S.data.tomas[S.cfToma]},F=cfFilas(t),c=cfChecklist(t,F),G=cfCustodios(t,F,{cr:S.cfCR||'',areaId:S.cfArea||''});S.cfGrupos=G;return cab+`<h3>Estado: ${c.estado.toUpperCase()}</h3>${cfPanelUI(t,F,c)}${S.admin&&!S.readonly?'<button class="btn primary" data-act="cfGenerar">Generar informe</button>':''}<h3>Historial de versiones</h3><div class="tbl-wrap"><table><thead><tr><th>Versión</th><th>Fecha</th><th>Estado</th><th>Aprobación</th><th>Acciones</th></tr></thead><tbody>${cfVersiones(t.id).map(v=>`<tr><td>v${v.version}</td><td>${fmtDT(v.fecha)}</td><td>${v.estado.toUpperCase()}</td><td>${v.aprobacion?'Aprobada por '+esc(v.aprobacion.nombre):'Pendiente'}</td><td><div class="row"><button class="btn sm" data-act="cfVerVersion" data-id="${esc(v.id)}">Ver versión</button><button class="btn sm" data-act="cfImprimirVersion" data-id="${esc(v.id)}">Imprimir informe</button><button class="btn sm" data-act="cfExcelVersion" data-id="${esc(v.id)}">Excel del informe</button>${S.admin&&!S.readonly&&!v.aprobacion?`<button class="btn sm" data-act="cfAprobar" data-id="${esc(v.id)}">Aprobar versión</button>`:''}</div></td></tr>`).join('')||'<tr><td colspan="5">Todavía no hay versiones guardadas.</td></tr>'}</tbody></table></div><h3>Actas de asignación por custodio</h3><div class="filters">${ecoSelect('cf-area','Filtrar actas por área',[['','Todas las áreas'],...areas().map(a=>[a.id,a.nombre])],S.cfArea||'')}${ecoSelect('cf-cr','Filtrar actas por CR',[['','Todos los CR'],...c.crs.map(cr=>[cr,nombreCR(cr)])],S.cfCR||'')}</div><div class="row"><button class="btn" data-act="cfPersonas">Ver custodios sin vincular</button>${S.admin&&!S.readonly?'<button class="btn" data-act="cfTodas">Imprimir todas</button><button class="btn" data-act="cfExcelCustodios">Excel Bienes por custodio</button>':''}</div><div class="tbl-wrap"><table><thead><tr><th>Custodio</th><th>Bienes encontrados</th><th>Área</th><th>Fuente</th><th></th></tr></thead><tbody>${G.map(g=>`<tr><td>${esc(g.nombre)}<div>${esc(g.cargo)}</div></td><td>${g.bienes.length}</td><td>${esc(g.areas.map(a=>a.nombre).join(' · '))}</td><td>${esc(g.fuentes.join(' · '))}</td><td>${S.admin&&!S.readonly&&g.key!=='SIN-PERSONA'?`<button class="btn sm" data-act="cfActa" data-id="${esc(g.key)}">Ver e imprimir acta</button>`:''}</td></tr>`).join('')}</tbody></table></div><p class="small muted">Solo se incluyen bienes Encontrados. Los que no tienen persona se listan para resolverlos y no generan acta. Cada custodio inicia una página; las relaciones extensas continúan en hojas siguientes.</p>`;}
 async function cfGenerar(){exigirAdmin();if(S.cfCargando)return toast('Espera a que termine la lectura del cierre.');await cfPreparar(true);if(S.cfError)throw new Error(S.cfError);const B=cfCalcular();S.cfBorrador=B;openForm({title:'Informe '+B.estado.toUpperCase()+' — vista previa',wide:true,note:`<p>${esc(B.resumen.toma.nombre)} · ${B.resumen.metodologia.esperados} bienes esperados. Los números se fijaron al generar esta vista previa.</p><button type="button" class="btn" data-act="cfImprimirBorrador">Imprimir vista previa</button><button type="button" class="btn" data-act="cfExcelBorrador">Excel vista previa</button>${cfChecklistHtml(B.resumen.checklist)}`,fields:[{k:'recomendaciones',l:'Recomendaciones del administrador',t:'textarea',full:true,v:B.recomendaciones}],ok:'Guardar versión',submit:async v=>{exigirAdmin();const id=await cfGuardarVersion({...B,recomendaciones:v.recomendaciones});toast('Versión fija guardada.');S.cfUltimaVersion=id;}});}
 async function cfRespaldar(out){for(const id of Object.keys(out.colecciones.informesInventario||{}))out.colecciones[cfPartesPath(id)]=await coleccionCR(cfPartesPath(id));}
 Object.assign(ACT,{
@@ -4505,7 +4603,7 @@ function presentarPantalla(){const main=$('#main');main.dataset.vista=S.view;if(
  const content=document.createElement('div');content.className='v2-content';content.append(...main.childNodes);main.append(title,content);
  const oldTitle=content.querySelector('h2'),head=oldTitle?.closest('.row')||oldTitle;oldTitle?.remove();
  if(!S.admin&&['usuarios','listas','contratos'].includes(S.view))return;
- if(!VISTAS_LISTA.has(S.view)){if(head?.querySelectorAll('button,summary').length){const bar=document.createElement('div');bar.className='v2-actions';head.replaceWith(bar);bar.append(head);}if(['conciliacion','cierreFormal'].includes(S.view))compactarEspecialUI(main,content);const filtros=content.querySelector('.filtros-cr');if(filtros){filtros.classList.remove('card');filtros.classList.add('menu','right');const panel=document.createElement('div');panel.className='menu-list';panel.setAttribute('role','menu');for(const el of [...filtros.children])if(el.tagName!=='SUMMARY')panel.append(el);filtros.append(panel);filtros.querySelector('summary').classList.add('btn');const bar=main.querySelector('.v2-actions');if(bar)bar.append(filtros);filtros.addEventListener('toggle',e=>S.crFiltroOpen=e.target.open);}return;}
+ if(!VISTAS_LISTA.has(S.view)||(S.view==='espacios'&&S.espVista==='planos')){if(head?.querySelectorAll('button,summary').length){const bar=document.createElement('div');bar.className='v2-actions';head.replaceWith(bar);bar.append(head);}if(['conciliacion','cierreFormal'].includes(S.view))compactarEspecialUI(main,content);const filtros=content.querySelector('.filtros-cr');if(filtros){filtros.classList.remove('card');filtros.classList.add('menu','right');const panel=document.createElement('div');panel.className='menu-list';panel.setAttribute('role','menu');for(const el of [...filtros.children])if(el.tagName!=='SUMMARY')panel.append(el);filtros.append(panel);filtros.querySelector('summary').classList.add('btn');const bar=main.querySelector('.v2-actions');if(bar)bar.append(filtros);filtros.addEventListener('toggle',e=>S.crFiltroOpen=e.target.open);}return;}
  tablaTarjetasUI(content);
  const bar=document.createElement('div');bar.className='v2-actions';bar.setAttribute('aria-label','Acciones de '+nombre);main.insertBefore(bar,content);const menu=detalleMenuUI();bar.append(menu);const lista=menu.lastElementChild;
  // Se trasladan los mismos nodos: eventos, valores e identificadores se conservan.
@@ -4724,6 +4822,9 @@ function camposNavegacionUI() {
     'mEjecutor',
     'prQ',
     'plSel',
+    'plEd',
+    'plAmb',
+    'plEditar',
     'espVista',
     'espQ',
     'espSede',
@@ -4841,8 +4942,10 @@ function interpretarRutaUI() {
   }
   const base = UI_RUTAS_FICHA[view] || RUTAS[view],
     params = new URLSearchParams();
-  if (view === 'espacios' && p.get('vista') === 'planos')
+  if (view === 'espacios' && p.get('vista') === 'planos') {
     params.set('vista', 'planos');
+    for (const k of ['edificio','nivel','ambiente']) if(p.get(k)) params.set(k,p.get(k));
+  }
   if (view === 'bienes' && p.get('situacion') === 'reponer')
     params.set('situacion', 'reponer');
   return {
@@ -4857,6 +4960,7 @@ function interpretarRutaUI() {
 }
 function rutaUI(evento = false) {
   if (evento && UI_NAV.current?.hash === location.hash) return;
+  const conservarEditorPlano=S.plEditar&&['#planos','#activos/planos','#inventario/planos'].includes(location.hash);
   guardarPantallaUI();
   const r = interpretarRutaUI(),
     prev = UI_NAV.current,
@@ -4883,8 +4987,12 @@ function rutaUI(evento = false) {
     S.view = UI_PADRE_FICHA[r.view] || r.view;
     S.menuVista = null;
     const p = new URLSearchParams(r.hash.split('?')[1] || '');
-    if (r.view === 'espacios')
+    if (r.view === 'espacios' && !r.record) {
       S.espVista = p.get('vista') === 'planos' ? 'planos' : 'espacios';
+      if (S.espVista === 'planos' && !conservarEditorPlano) {
+        S.plEd=p.get('edificio')||''; S.plSel=p.get('nivel')||''; S.plAmb=p.get('ambiente')||''; S.plEditar=false;
+      }
+    }
     if (r.view === 'bienes' && !r.record) {
       S.f.situacion = p.get('situacion') === 'reponer' ? 'reponer' : '';
     }
@@ -5014,6 +5122,13 @@ function barraRutaUI() {
     v === 'resumen'
       ? '<span>Panel de inicio</span>'
       : `<a href="#${RUTAS[first]}">${NAVG[g].l}</a><span aria-hidden="true">›</span>${r ? `<a href="#${RUTAS[UI_PADRE_FICHA[v] || v]}">${nombreVistaUI(v)}</a><span aria-hidden="true">›</span><span title="${esc(nombreRegistroUI(r))}">${esc(nombreRegistroUI(r))}</span>` : `<span>${nombreVistaUI(v)}</span>`}`;
+  const origenPlano=new URLSearchParams((UI_NAV.current?.parent||'').split('?')[1]||'');
+  if (S.view==='espacios' && S.espVista==='planos' && !r || r && origenPlano.get('vista')==='planos') {
+    const contexto=r?origenPlano:new URLSearchParams(location.hash.split('?')[1]||''),
+      ed=contexto.get('edificio')||S.plEd,pid=contexto.get('nivel')||S.plSel,aid=contexto.get('ambiente')||'',
+      g=edificiosPlanosUI().find(x=>x.key===ed),p=g?.planos.find(x=>x.id===pid);
+    nav.innerHTML=`<a href="#${RUTAS.espacios}">Espacios y planos</a><span>›</span><a href="${esc(rutaPlanoUI())}">Elegir edificio</a>${g?`<span>›</span><a href="${esc(rutaPlanoUI(g.key,g.planos[0].id))}">${esc(g.nombre)}</a>`:''}${p?`<span>›</span><a href="${esc(rutaPlanoUI(g.key,p.id))}">${esc(planoNombre(p))}</a>`:''}${aid?`<span>›</span><a href="${esc(rutaPlanoUI(ed,pid,aid))}">${esc(p?.ambientes?.find(a=>a.id===aid)?.nombre||'Ambiente')}</a>`:''}${r?`<span>›</span><span>${esc(nombreRegistroUI(r))}</span>`:''}`;
+  }
   actualizarRecientesUI();
 }
 function recientesUI() {
