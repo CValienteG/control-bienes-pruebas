@@ -501,6 +501,14 @@ aside.drawer,dialog#modal.modal,dialog#modal.modal.wide,dialog#modal.modal.xwide
 .unit-control{display:flex;min-width:0}.unit-control>.inp{flex:1;min-width:0;border-radius:8px 0 0 8px}.unit-control>span{height:38px;display:flex;align-items:center;padding:0 10px;border:1px solid var(--field-border);border-left:0;border-radius:0 8px 8px 0;background:var(--readonly);color:var(--muted)}
 .v2-form-contable{grid-column:1/-1}.v2-form-contable>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 14px;margin-top:12px}.v2-form-contable .full{grid-column:1/-1}@media(max-width:1500px){.v2-form-contable>div{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .cr-pendientes{overflow-wrap:anywhere}.cr-pendientes ul{margin:6px 0 0;padding-inline-start:20px}
+/* Ayudas y plano completo, solo en las consultas y formularios en alcance. */
+[data-plano-consulta]{min-width:0;width:100%;margin:8px 0}
+[data-plano-consulta] .plano img{object-fit:contain}
+#modal .help{display:block;white-space:normal;overflow-wrap:anywhere;line-height:1.4}
+#modal .fld{min-width:0}
+#modal select.inp{max-width:100%}
+#modal .nota-ayuda-ui{grid-column:1/-1;margin:0 0 12px;max-width:90ch}
+#ayuda ol{padding-left:24px}#ayuda li{margin:10px 0}#ayuda dt{font-weight:700}#ayuda dd{margin:2px 0 12px}
 </style>
 </head>
 <body>
@@ -1638,19 +1646,19 @@ function puedeSerSistema(b){
 }
 function respaldoSistema(code,existente=null){
  const b=findAF(code);if(!b)return {error:`No encontré el activo fijo ${code}.`};
- if(!puedeSerSistema(b)&&b.id!==existente&&!$('#af-otras')?.checked)return {error:'Categoría no habitual en sistemas. Marca «Mostrar otras categorías» para elegir este bien como excepción.'};
+ if(!puedeSerSistema(b)&&b.id!==existente&&!$('#af-otras')?.checked)return {error:'Categoría no habitual en sistemas. Marca «Permitir un bien de otra categoría (excepción)» para elegir este bien como excepción.'};
  return {b};
 }
 function controlRespaldoSistema(existente=null){
  const inp=$('#ff-af');if(!inp)return;attachSug('ff-af','afSistema');
- const fld=inp.closest('.fld');fld.insertAdjacentHTML('beforeend','<label class="chk"><input type="checkbox" id="af-otras"> Mostrar otras categorías</label><span class="help" id="af-aviso" role="status"></span>');
+ const fld=inp.closest('.fld');fld.insertAdjacentHTML('beforeend','<label class="chk"><input type="checkbox" id="af-otras"> Permitir un bien de otra categoría (excepción)</label><span class="help">Solo si el equipo está registrado en contabilidad con otra categoría. Se guardará como excepción.</span><span class="help" id="af-aviso" role="status"></span>');
  const aviso=()=>{const b=findAF(inp.value),otras=$('#af-otras').checked;$('#af-aviso').textContent=b&&!puedeSerSistema(b)?'Categoría no habitual en sistemas.'+(b.id===existente?' Se conserva el vínculo existente.':otras?' Se vinculará como excepción.':' Marca la casilla para elegirlo como excepción.'):otras?'Las otras categorías se muestran como excepción; verifica que corresponda al sistema.':'';};
  inp.addEventListener('input',aviso);$('#af-otras').addEventListener('change',()=>{aviso();sugCloseAll();});aviso();
 }
 function categoriasSistemasModal(){
  if(!S.admin||S.readonly){toast('Solo un administrador puede editar las categorías.');return;}
  const actual=S.data.config.sistemasCategorias?.categorias??['EQUIPOS'];
- openForm({title:'Categorías permitidas en sistemas',note:'Se aplican a categoría o sección del bien. No elimina vínculos existentes. Las excepciones se siguen eligiendo con «Mostrar otras categorías».',fields:[{k:'categorias',l:'Categorías separadas por comas',v:actual.join(', '),req:true,full:true}],ok:'Ver vista previa',submit:async v=>{
+ openForm({title:'Categorías permitidas en sistemas',note:'Se aplican a categoría o sección del bien. No elimina vínculos existentes. Las excepciones se siguen eligiendo con «Permitir un bien de otra categoría (excepción)».',fields:[{k:'categorias',l:'Categorías separadas por comas',v:actual.join(', '),req:true,full:true}],ok:'Ver vista previa',submit:async v=>{
   const categorias=[...new Set(v.categorias.split(',').map(c=>c.trim().toUpperCase()).filter(Boolean))];if(!categorias.length)return {error:'Indica al menos una categoría.'};
   const previa=JSON.stringify(S.data.config.sistemasCategorias??null);
   openForm({title:'Confirmar categorías permitidas',note:`Antes: ${actual.map(esc).join(', ')}<br>Ahora: <b>${categorias.map(esc).join(', ')}</b><p>Los vínculos existentes se conservan.</p>`,fields:[],ok:'Guardar categorías',submit:async()=>{
@@ -1712,7 +1720,7 @@ const SIS_ACT = {
       submit:async v=>{ if(!puedeSerSistema(S.data.bienes[bid]))return {error:'La categoría del bien ya no está permitida.'}; const sid=await ensureSis(v.sis); const r=await vincularAF(sid,b,v.tipoEq,v.zona); if(r.error) return r; toast(`Agregado a ${sid} como ${r.codigo}.`); } });
     setTimeout(()=>{ const s=$('#ff-sis'), t=$('#ff-tipoEq'); if(s&&t) s.addEventListener('change',()=>{ t.innerHTML=allTipos(tipoOf(s.value)); }); },0); },
   eAgregar(sisId, _el, preset){ const s=S.data.sistemas[sisId]; const cjE=preset?.cj?S.data.equipos[preset.cj]:null;
-    const fields=eqFields(s, cjE?{zona:cjE.zona,piso:cjE.piso,bienId:cjE.bienId}:{}, [{k:'cant',l:'Cantidad',t:'number',v:1}, {k:'modo',l:'Si es más de uno',t:'select',opts:[['sep','Un equipo por unidad (se mantienen por separado)'],['grp','Un solo equipo con cantidad (unidades iguales y pequeñas)']]}]);
+    const fields=eqFields(s, cjE?{zona:cjE.zona,piso:cjE.piso,bienId:cjE.bienId}:{}, [{k:'cant',l:'Cantidad',t:'number',v:1}, {k:'modo',l:'Si es más de uno',t:'select',opts:[['sep','Un equipo por unidad: crea un equipo por cada unidad, con su código, ficha y mantenimiento'],['grp','Un solo equipo con cantidad: crea uno solo; no se puede registrar el estado de cada unidad']]}]);
     fields[0].opts=fields[0].opts.filter(([k])=>k!=='CJ');
     if(cjE) fields.push({k:'quitar',l:'Conjunto «por desglosar»',t:'select',opts:[['si','Eliminarlo al terminar'],['no','Mantenerlo (aún faltan equipos)']],full:true});
     openForm({title:cjE?`Desglosar ${cjE.codigo}`:'Agregar equipos', wide:true, note:cjE?`Los equipos nuevos quedan respaldados por el mismo AF (${esc(afLabel(S.data.bienes[cjE.bienId]))}).`:'Para varias unidades iguales, se generan códigos correlativos; luego completa la ubicación de cada una con «Editar».', fields,
@@ -1723,7 +1731,7 @@ const SIS_ACT = {
         const tasks=docs.map(d=>()=>crearEquipo(JSON.parse(JSON.stringify({sistemaId:sisId,tipoEq:v.tipoEq,...d,zona:v.zona,piso:v.piso,ambiente:v.ambiente,marca:v.marca,modelo:v.modelo,serie:one?v.serie:'',capacidad:v.capacidad,bienId:bid,componentes:comps})), cjE?`Desglose de ${cjE.codigo}`:''));
         await runMany(tasks,4,(d,t)=>modalProgress(`Creando equipos: ${d} de ${t}…`));
         if(cjE && v.quitar==='si') await del('equipos',preset.cj);
-        toast(`${docs.length} ${docs.length===1?'equipo creado':'equipos creados'}: ${docs[0].codigo}${docs.length>1?' a '+docs[docs.length-1].codigo:''}.`); } }); controlRespaldoSistema(cjE?.bienId); },
+        toast(`${docs.length} ${docs.length===1?'equipo creado':'equipos creados'}: ${docs[0].codigo}${docs.length>1?' a '+docs[docs.length-1].codigo:''}.`); } }); controlRespaldoSistema(cjE?.bienId); const cantidad=$('#ff-cant'),modo=$('#ff-modo').closest('.fld'),mostrarModo=()=>{modo.hidden=Number(cantidad.value)<=1;};cantidad.addEventListener('input',mostrarModo);cantidad.addEventListener('change',mostrarModo);mostrarModo(); },
   eDesglosar(id){ const e=S.data.equipos[id]; SIS_ACT.eAgregar(e.sistemaId, null, {cj:id}); },
   eEditar(id){ const e=S.data.equipos[id]; const s=S.data.sistemas[e.sistemaId]||{tipo:'OTRO'};
     const fields=eqFields(s,e,[{k:'cant',l:'Cantidad',t:'number',v:e.cantidad||1}]); fields.push({k:'notas',l:'Notas',t:'textarea',full:true,v:e.notas});
@@ -1856,7 +1864,7 @@ function vPlanosConsultaUI() {
     return cab + tabs + nivel + `<h3>${esc(ambiente.nombre)}</h3><a class="btn" href="${esc(rutaPlanoUI(g.key,p.id))}">Volver al nivel</a><p>${B.length} bienes ubicados aquí.</p>` +
       listaAmpliableUI(B, b => `<p data-pl-bien><button class="btn link" data-act="openBien" data-id="${esc(b.id)}">${esc(b.codigo || b.id)} · ${esc(b.nombre)}</button></p>`);
   }
-  return cab + tabs + nivel + planoHtml({...p,ambientes:A},{act:'plAmbienteUI',counts:cnt,ocultarCeros:true}).replaceAll('data-act="plAmbienteUI"','data-ui="plAmbienteUI"') +
+  return cab + tabs + nivel + '<div data-plano-consulta>' + planoHtml({...p,ambientes:A},{act:'plAmbienteUI',counts:cnt,ocultarCeros:true}).replaceAll('data-act="plAmbienteUI"','data-ui="plAmbienteUI"') + '</div>' +
     '<section class="card"><h3>Ambientes</h3><div class="row">' + listaAmpliableUI(A, a => `<button class="fchip" data-ui="plAmbienteUI" data-id="${esc(a.id)}" data-pl="${esc(p.id)}">${esc(a.nombre)}${cnt[a.id] ? ` <span class="num">· ${cnt[a.id]}</span>` : ''}</button>`) + '</div></section>';
 }
 
@@ -3282,14 +3290,14 @@ async function tbAttrGuardar(){exigirAdmin();tbAttrLeer();const D=S.tbDraft,rows
  await patch('tiposBien',D.id,{atributos:out,act:nowIso(),uAct:S.me||null});S.tbDraft=null;$('#modal').close();toast('Datos técnicos guardados.');render();}
 Object.assign(ACT,{
  tbSembrar(){exigirAdmin();const P=tbPropuesta();if(!P.length){toast('No hay agrupadores nuevos.');return;}
-  openForm({title:'Tipos de bien: vista previa',wide:true,ok:'Crear',fields:[],note:`Se crearán <b>${plOrg(P.length,'tipo','tipos')}</b>, uno por cada agrupador que aún no tiene tipo. Familia y clase salen de la mayoría de sus bienes; la vida útil, de las tasas máximas de SUNAT (10 años en general, 5 para vehículos, 4 para cómputo). Los datos técnicos son una propuesta. Todo se puede cambiar después. No se modifica ningún bien, agrupador ni la toma.<div class="org-prev"><div class="tbl-wrap"><table><thead><tr><th>Tipo</th><th>Familia</th><th>Clase</th><th>Vida útil</th><th>Datos técnicos</th><th>Bienes</th></tr></thead><tbody>${P.map(t=>`<tr><td>${esc(t.nombre)}</td><td>${esc(tbFamiliaTxt(t.familia))}${t.familias.length>1?`<div class="small muted">también: ${esc(t.familias.filter(f=>f!==t.familia).map(tbFamiliaTxt).join(', '))}</div>`:''}</td><td>${t.clase}</td><td class="num">${t.vidaUtil}</td><td class="small">${esc(t.atributos.map(a=>a.l).join(', ')||'—')}</td><td class="num">${t.n}</td></tr>`).join('')}</tbody></table></div></div>`,
+  openForm({title:'Tipos de bien: vista previa',wide:true,ok:'Crear',fields:[],note:`Se crearán <b>${plOrg(P.length,'tipo','tipos')}</b>, uno por cada agrupador que aún no tiene tipo. Familia y clase salen de la mayoría de sus bienes; la vida útil es una sugerencia actual de la app (10 años en general, 5 para vehículos, 4 para cómputo), editable para reposición. Los datos técnicos son una propuesta. Todo se puede cambiar después. No se modifica ningún bien, agrupador ni la toma.<div class="org-prev"><div class="tbl-wrap"><table><thead><tr><th>Tipo</th><th>Familia</th><th>Clase</th><th>Vida útil</th><th>Datos técnicos</th><th>Bienes</th></tr></thead><tbody>${P.map(t=>`<tr><td>${esc(t.nombre)}</td><td>${esc(tbFamiliaTxt(t.familia))}${t.familias.length>1?`<div class="small muted">también: ${esc(t.familias.filter(f=>f!==t.familia).map(tbFamiliaTxt).join(', '))}</div>`:''}</td><td>${t.clase}</td><td class="num">${t.vidaUtil}</td><td class="small">${esc(t.atributos.map(a=>a.l).join(', ')||'—')}</td><td class="num">${t.n}</td></tr>`).join('')}</tbody></table></div></div>`,
    submit:async()=>{exigirAdmin();const Q=tbPropuesta();await runMany(Q.map(t=>async()=>{const {id,n,familias,...d}=t;await put('tiposBien',id,d);}),4,(d,t)=>modalProgress(`Guardando: ${d} de ${t}…`));toast(`Creados: ${plOrg(Q.length,'tipo','tipos')}.`);render();}});},
  tbNuevo(){exigirAdmin();ACT.tbEditar(null);},
  tbEditar(id){exigirAdmin();const t=id?{id,...S.data.tiposBien[id]}:{agrupadores:[],activo:true,clase:'AF',familia:'MUEBLES'},otro=tbPorAgrupador(false),cnt=new Map();for(const b of bienes())if(b.etapa!=='baja'){const a=agrupador(b);cnt.set(a,(cnt.get(a)||0)+1);}
   const fams=[...new Set([...Object.keys(TB_FAMILIAS),...bienes().map(b=>b.categoria).filter(Boolean),t.familia].filter(Boolean))];
   openForm({title:id?'Editar tipo de bien':'Nuevo tipo de bien',wide:true,note:id?`Código: <b>${esc(id)}</b> (no cambia). Los datos técnicos se editan con el botón «Datos técnicos».`:'Después de crearlo, agrega sus datos técnicos con el botón «Datos técnicos».',fields:[
    {k:'nombre',l:'Nombre del tipo',v:t.nombre||'',req:true,full:true},{k:'familia',l:'Familia',t:'select',opts:fams.map(f=>[f,tbFamiliaTxt(f)]),v:t.familia},{k:'clase',l:'Clase por defecto',t:'select',opts:[['AF','Activo fijo'],['BM','Bien menor']],v:t.clase,help:'Cada bien conserva su propia clase; esta es la sugerida para bienes nuevos.'},
-   {k:'vidaUtil',l:'Vida útil (años)',t:'number',v:t.vidaUtil??'',help:'Para planear reposiciones. Referencia SUNAT: 10 en general, 5 vehículos, 4 cómputo.'},
+   {k:'vidaUtil',l:'Vida útil (años)',t:'number',v:t.vidaUtil??'',help:'Referencia en años para reposición. La app usa este valor para estimar si el bien alcanzó su vida útil.'},
    {k:'agrupadores',l:'Agrupadores que le corresponden',t:'checks',full:true,opts:agrupadoresExistentes().filter(a=>a!==SIN_AGRUPADOR).map(a=>{const o=otro.get(a);return [a,a,[cnt.get(a)?plOrg(cnt.get(a),'bien','bienes'):'',o&&o!==id?((S.data.tiposBien[o]?.nombre||o)===a?'tiene su propio tipo':'ahora en '+(S.data.tiposBien[o]?.nombre||o)):''].filter(Boolean).join(' · ')];}),v:t.agrupadores||[],help:'Si un agrupador estaba en otro tipo, pasa a este. Los agrupadores se cambian en Bienes → Grupos de bienes.'},
    ...(id?[{k:'activo',l:'Estado',t:'select',opts:[['si','Activo'],['no','Inactivo']],v:t.activo===false?'no':'si'}]:[])],ok:id?'Guardar':'Crear tipo',
    submit:async v=>{exigirAdmin();const nombre=v.nombre.replace(/\s+/g,' ').trim();if(tiposBien().some(x=>x.id!==id&&nrm(x.nombre)===nrm(nombre)))return {error:'Ya existe un tipo con ese nombre.'};
@@ -4669,24 +4677,360 @@ function cambiarTabFichaUI(t){S.fichaTab=t;document.querySelectorAll('#drawer [r
 function abrirPendienteUI(act,id){if(act==='v2Plan'){const p=S.data.planesPreventivos[id];openForm({title:p?.nombre||'Plan preventivo',fields:[],note:`<fieldset class="v2-block"><legend>Plan preventivo</legend><p>Frecuencia: ${esc(p?.frecuenciaMeses)} meses</p><ul>${(p?.tareas||[]).map(t=>`<li>${esc(t)}</li>`).join('')}</ul>${S.admin&&!S.readonly?`<button class="btn" data-act="ppEditar" data-id="${esc(id)}">Editar</button>`:''}</fieldset>`,ok:'Cerrar',submit:()=>{}});formCtx.lectura=true;return;}accionPresentacionUI(act,id);presentarDialogoUI();}
 document.addEventListener('input',e=>{if(e.target.dataset.busquedaVista){(S.busquedaVista||={})[e.target.dataset.busquedaVista]=e.target.value;filtrarVistaUI();}});
 
-const AYUDA = {resumen:['Consulta las OT, mantenimientos preventivos, órdenes y fallas pendientes.','Pulsa una fila para abrir su ficha.','La campana suma OT atrasadas, fallas sin atender, órdenes por atender y dudas de tomas abiertas.'],inventario:['Paso 1: cuenta cada CR y resuelve sus dudas.','Subir V3 llena revisa el archivo antes de importar.','Elige un CR para empezar o seguir contando.','El cierre conserva sus confirmaciones y genera el acta.'],conciliacion:['Paso 2: compara el inventario con copias contables.','Importa un registro contable y revisa sus diferencias.','Anota aclaraciones sin modificar las fichas.'],cierreFormal:['Paso 3: prepara el informe y las actas.','Revisa los pendientes y genera una vista previa.','Guardar versión fija los números de ese informe.','Las actas por custodio usan los datos de las personas.'],bienes:['Busca un bien por código, descripción o custodio.','Registrar bien abre el alta actual.','Selecciona una fila y ábrela con doble clic o Enter.','Actualizar estado conserva el registro de conservación y operatividad.'],ciclo:['Aquí continúan las altas y bajas actuales.','Nuevo requerimiento inicia el trámite.','Abre una tarjeta para ver la siguiente acción.'],fallas:['Reporta una falla de bienes, equipos o espacios.','El administrador acepta o descarta el reporte.','El seguimiento muestra sus OT y órdenes de servicio.'],mantenimientos:['Consulta las órdenes de trabajo por visita o por orden.','Programar mantenimiento crea una OT.','Inicia y completa el trabajo conservando su resultado y costo.'],ordenesCompra:['Nueva orden permite elegir compra o servicio.','Completa proveedor, detalle y condiciones.','Completa los bloques y guarda el borrador.','La aprobación conserva la numeración y el formato oficial.'],configuracion:['Aquí se encuentran los catálogos y los respaldos.','Abrir muestra la herramienta actual.','Cada cuenta conserva sus permisos.'],respaldo:['Respaldo completo descarga los datos y subcolecciones.','Conserva el archivo original en un lugar seguro.','En pruebas, el administrador puede cargar una copia de producción.']};
-Object.assign(AYUDA,{
- planos:['Consulta los ambientes y cuadrantes de cada piso.','Nuevo plano agrega la imagen de un piso.','Abre un plano para consultar sus ambientes.','En Más puedes editar los nombres de ambientes.'],
- planes:['Define tareas preventivas y su frecuencia.','Generar programación presenta las visitas y OT antes de crearlas.','Nuevo plan permite definir una rutina.','Revisa el alcance y confirma la vista previa.'],
- sistemas:['Consulta sistemas y sus equipos físicos.','Cargar equipos revisa un Excel antes de agregarlo.','Descarga la plantilla y completa los datos de cada equipo.','Abre un sistema para consultar sus componentes y órdenes.'],
- contratos:['Consulta los contratos y sus visitas.','Nuevo contrato registra proveedor, planes y vigencia.','Ver visita abre sus órdenes y avance.','Solo el administrador puede administrar contratos.'],
- gastos:['Consulta los costos de las órdenes completadas.','Descargar Excel guarda el detalle del período elegido.','Elige el año y los meses.','Revisa las tablas por espacio, equipo, área o proveedor.'],
- presupuesto:['Compara presupuesto, gasto y compromiso del año.','Editar presupuesto cambia los montos autorizados.','Elige el año y revisa el total y las áreas.','Solo el administrador puede guardar el presupuesto.'],
- reposicion:['Consulta qué bienes requieren planear una reposición.','Descargar Excel guarda la consulta.','Filtra por estado, área o tipo de bien.','La vida útil y fecha de adquisición son referencias para esta lista.'],
- espacios:['Consulta sedes, edificios, pisos y ambientes.','Crear catálogo inicial propone los espacios de los planos.','Abre un ambiente para ver sus bienes.','El administrador puede agregar pisos y ambientes.'],
- areas:['Consulta las áreas operativas y sus jefaturas.','Nueva área registra un área y sus CR de referencia.','Abre un área para ver personas y bienes.','Crear catálogo inicial permite empezar desde los CR existentes.'],
- personas:['Consulta quién tiene bienes a su cargo.','Nueva persona registra nombre, cargo y áreas.','Abre una persona para consultar sus bienes.','Revisa los custodios sin vincular y completa los cargos que faltan.'],
- tipos:['Consulta la clasificación y los atributos de los bienes.','Crear tipos iniciales usa los agrupadores existentes.','Nuevo tipo agrega una clasificación.','Datos técnicos permite definir los atributos del tipo.'],
- proveedores:['Consulta contactos y cuentas de proveedores.','Nuevo proveedor abre el registro.','Busca por nombre, RUC o especialidad.','El administrador puede editar o desactivar proveedores.'],
- listas:['Consulta los valores compartidos y el formato oficial.','Formato de OC/OS y firmas permite editar los datos SBP y las tres firmas.','El logo oficial se muestra junto al formato.','Editar y ordenar cambia una lista; Unir valores presenta una vista previa.'],
- usuarios:['Consulta y administra las cuentas de acceso.','Administrar usuarios abre el panel actual de cuentas.','Activa la cuenta y elige su rol.','Solo el administrador puede cambiar estos permisos.']
-});
-function abrirAyuda(){const nombre=NAVG[grupoDe(S.view)].v.find(([v])=>v===S.view)?.[1]||'Ayuda',lineas=AYUDA[S.view]||['Consulta los datos de '+nombre.toLowerCase()+'.','El botón principal abre el registro o la acción disponible.','Los filtros permiten encontrar un registro.','Abre un registro para ver sus detalles y acciones.'];$('#ayuda').innerHTML=`<div class="row between"><h2 id="ayuda-titulo">${esc(nombre)}</h2><button class="btn" data-ui="cerrarAyuda" aria-label="Cerrar ayuda">×</button></div>${lineas.map(l=>`<p>${esc(l)}</p>`).join('')}${S.view==='inventario'&&S.anCR?`<a href="#casos-toma" data-ui="casos">Casos de la toma: qué hacer</a><details id="casos-toma"><summary>Casos de la toma: qué hacer</summary><p>Hay menos unidades que en el listado: 1 en las filas vistas y 0 con una nota en las demás.</p><p>AF que no está en el listado: va como sobrante, con la serie.</p><p>Bien de otro CR: en su propia fila, con la nota «ubicado en otro CR».</p><p>Bien sin etiqueta: con la nota «sin etiqueta».</p><p>Bien en reparación fuera de la sede: CANTIDAD 1, «Fuera de sede» y la OS o guía de salida.</p><p>Marca, modelo o serie distintos: van en OBSERVACIONES.</p><p>Bien de terceros: como sobrante, con la nota «DE TERCEROS: [dueño] – no dar de alta».</p><p>No usar «Por conciliar» para estos casos: bloquea el cierre del CR.</p></details>`:''}`;$('#ayuda').showModal();}
+const GUIAS_UI = {
+ "resumen": [
+  [
+   "Revisar pendientes",
+   [
+    "Revisa las OT atrasadas, los preventivos, las órdenes y las fallas del Panel de inicio.",
+    "Abre una fila para consultar su ficha y las acciones disponibles para tu cuenta.",
+    "Usa la campana para consultar también las dudas de tomas abiertas."
+   ]
+  ]
+ ],
+ "bienes": [
+  [
+   "Registrar un bien",
+   [
+    "Pulsa Registrar bien en Bienes.",
+    "Elige AF si figura en la lista de activos fijos de Contabilidad; en caso contrario, BM.",
+    "Completa la descripción, el código de etiqueta, el área escrita, la ubicación y el custodio.",
+    "Solo para AF, indica el código con que figura en la lista de Contabilidad si lo conoces.",
+    "Guarda para crear la ficha del bien en uso.",
+    "Abre su ficha para asignar tipo, área y persona del catálogo o completar datos técnicos."
+   ]
+  ]
+ ],
+ "ciclo": [
+  [
+   "Tramitar altas y bajas",
+   [
+    "Pulsa Nuevo requerimiento y registra la necesidad y su justificación.",
+    "El administrador puede aprobar o rechazar el requerimiento desde su ficha.",
+    "Para un aprobado, registra la recepción con proveedor y documento.",
+    "Dale de alta con código, ubicación y custodio para dejarlo en uso.",
+    "Para retirar un bien, solicita la baja con motivo y sustento; el administrador decide y registra el destino."
+   ]
+  ]
+ ],
+ "fallas": [
+  [
+   "Reportar y atender una falla",
+   [
+    "Pulsa Reportar falla; elige bienes o equipos, o un espacio activo.",
+    "Agrega los bienes o equipos al reporte, o elige el espacio; describe el problema y revisa prioridad y plazo.",
+    "Si falta un bien, usa Registrar bien; el administrador también puede Crear espacio. Al volver se conserva el reporte.",
+    "Guarda el reporte. El administrador lo acepta para crear las OT correctivas, o lo descarta con motivo.",
+    "En Seguimiento abre cada OT para iniciar, completar el trabajo y guardar su resultado.",
+    "El administrador puede crear una OS desde la falla; revisa el borrador antes de aprobar.",
+    "Tras recibir el servicio, registra la conformidad de la OS y confirma el acta firmada."
+   ]
+  ]
+ ],
+ "sistemas": [
+  [
+   "Crear un sistema y sus equipos",
+   [
+    "En Sistemas y equipos, elige un tipo del catálogo que aún no se haya creado; Otro tipo pide nombre y justificación.",
+    "Abre el sistema y usa Datos del sistema para guardar proveedor y responsable como referencias.",
+    "Pulsa Agregar equipos y elige tipo, cantidad, ubicación y, si corresponde, AF de respaldo.",
+    "Con más de una unidad, elige registros separados o un solo equipo con cantidad y guarda.",
+    "Para vincular un bien existente, pulsa Vincular AF e indica su código contable o ADM.",
+    "Si ese AF representa varios equipos, elige Conjunto por desglosar; después usa Desglosar para registrarlos y decide si conservar el conjunto."
+   ]
+  ]
+ ],
+ "planes": [
+  [
+   "Programar un preventivo",
+   [
+    "Pulsa Nuevo plan y define alcance, frecuencia, tareas y ejecutor por defecto.",
+    "Según el alcance, elige un tipo de bien, un sistema o añade objetivos a la lista; guarda el plan.",
+    "Pulsa Generar programación, elige planes y fecha de inicio y abre la vista previa.",
+    "Revisa las visitas y OT propuestas y las OT fuera de alcance antes de confirmar.",
+    "Consulta la programación en Órdenes de trabajo, Por visita; un contrato vigente puede generar una OS en borrador.",
+    "Inicia y completa la visita con trabajo común, tareas y excepciones por OT."
+   ]
+  ]
+ ],
+ "mantenimientos": [
+  [
+   "Atender una OT o visita",
+   [
+    "Elige Por visita para consultar el grupo de OT o Por orden para las OT individuales y manuales.",
+    "Abre el detalle y pulsa Iniciar visita o Iniciar en una OT programada.",
+    "Pulsa Completar visita para anotar trabajo común, tareas y excepciones; No atendido cancela esa OT con motivo.",
+    "En una OT individual, Completar guarda fecha real, trabajo, costo y estado final dentro de la OT.",
+    "Si la visita tiene una OS en borrador y cambió la cantidad atendible, el administrador puede Actualizar cantidad.",
+    "Abre la OS para revisar su borrador, aprobarlo y registrar la conformidad cuando corresponda."
+   ]
+  ]
+ ],
+ "ordenesCompra": [
+  [
+   "Crear y tramitar una OC u OS",
+   [
+    "Pulsa Nueva orden y elige compra (OC) o servicio (OS).",
+    "Elige proveedor y área; añade los ítems con cantidad, unidad y precio sin IGV.",
+    "Revisa IGV, cotización, condiciones y observaciones; guarda el borrador.",
+    "Abre el borrador para corregirlo; el administrador puede aprobarlo y asignar su número.",
+    "Con la orden aprobada, registra fecha y texto de conformidad; en OS confirma que recibiste el acta firmada.",
+    "Para detener una orden, el administrador usa Anular y escribe el motivo; el registro se conserva."
+   ]
+  ]
+ ],
+ "espacios": [
+  [
+   "Organizar espacios",
+   [
+    "El administrador puede Crear catálogo inicial para revisar las sedes, edificios, pisos y ambientes propuestos desde los planos.",
+    "Revisa la vista previa y confirma para crear solo lo que falta.",
+    "Elige una sede y usa Agregar edificio si hace falta uno.",
+    "En un edificio, pulsa Agregar piso; en un piso, Agregar ambiente.",
+    "Completa nombre y código corto; para un ambiente puedes indicar su tipo.",
+    "Abre el ambiente para ver sus bienes y la pestaña Plano si tiene una relación existente."
+   ]
+  ]
+ ],
+ "planos": [
+  [
+   "Consultar planos",
+   [
+    "En Espacios, abre Planos y elige un edificio registrado.",
+    "Elige la pestaña del nivel que quieres consultar; el plano se ajusta a la altura disponible.",
+    "Pulsa un ambiente del plano o de su lista para consultar los bienes ubicados allí.",
+    "Pulsa Volver al nivel para regresar al plano o Ir a Espacios para consultar el catálogo."
+   ]
+  ]
+ ],
+ "areas": [
+  [
+   "Organizar áreas",
+   [
+    "El administrador puede Crear catálogo inicial para revisar áreas y personas propuestas desde CR y custodios.",
+    "Pulsa Nueva área y completa nombre, sigla opcional y jefatura.",
+    "Marca los CR de referencia y guarda; no cambia el CR fijo de la toma.",
+    "Abre el área para consultar sus personas y usa Editar para actualizar sus datos."
+   ]
+  ]
+ ],
+ "personas": [
+  [
+   "Registrar y vincular personas",
+   [
+    "Pulsa Nueva persona y completa nombres y apellidos, cargo y áreas.",
+    "Si corresponde, enlaza una cuenta existente y añade otras formas de escribir su nombre.",
+    "Guarda y abre la persona para consultar los bienes a su cargo.",
+    "En Custodios escritos sin vincular, agrega una persona o elige Es una persona registrada para guardar el texto como alias.",
+    "Si hay dos registros de la misma persona, usa Unir y elige cuál se conserva; revisa la nota antes de confirmar."
+   ]
+  ]
+ ],
+ "tipos": [
+  [
+   "Definir tipos y datos técnicos",
+   [
+    "El administrador puede Crear tipos iniciales desde los agrupadores y revisar la vista previa.",
+    "Pulsa Nuevo tipo para registrar nombre, familia y clase sugerida; revisa la vida útil para reposición.",
+    "Marca los agrupadores que le corresponden y guarda; si estaban en otro tipo, pasan al elegido.",
+    "Usa Datos técnicos para añadir nombre, tipo de dato, opciones, unidad y si es obligatorio.",
+    "Guarda los campos del tipo; después completa los valores en la ficha de cada bien."
+   ]
+  ]
+ ],
+ "proveedores": [
+  [
+   "Registrar proveedores",
+   [
+    "Pulsa Nuevo proveedor y completa el nombre y los datos de contacto.",
+    "Si indicas RUC, usa 11 dígitos; las cuentas se escriben una por línea: banco | cuenta | CCI.",
+    "Guarda para usar el proveedor en nuevas OT, contratos u órdenes.",
+    "Usa Editar o Desactivar desde su ficha; desactivar conserva las órdenes anteriores."
+   ]
+  ]
+ ],
+ "contratos": [
+  [
+   "Asociar un contrato a los planes",
+   [
+    "El administrador pulsa Nuevo contrato y elige un proveedor activo.",
+    "Marca sus planes, indica vigencia y costo por equipo o bien sin IGV.",
+    "Revisa área solicitante y condiciones y guarda.",
+    "Genera programación desde Planes; la visita usa el contrato vigente para esa fecha y prepara una OS en borrador.",
+    "Abre Ver visita para consultar sus OT y avance."
+   ]
+  ]
+ ],
+ "gastos": [
+  [
+   "Consultar costos y presupuesto",
+   [
+    "Elige el año en Costos y presupuesto para consultar presupuesto, gasto y saldo.",
+    "El administrador puede Editar presupuesto; el monto general y los montos por área se guardan por separado.",
+    "Elige los meses y la agrupación para consultar los gastos del período.",
+    "Descarga el Excel de gastos para conservar la consulta."
+   ]
+  ]
+ ],
+ "presupuesto": [
+  [
+   "Registrar un presupuesto",
+   [
+    "Elige el año que quieres consultar.",
+    "El administrador pulsa Editar presupuesto e indica el total y los montos por área por separado.",
+    "Guarda y revisa el gasto y los compromisos del año."
+   ]
+  ]
+ ],
+ "reposicion": [
+  [
+   "Consultar reposición",
+   [
+    "En Bienes, elige el filtro de reposición.",
+    "Filtra por estado, área o tipo según necesites.",
+    "Revisa fecha de adquisición y vida útil del tipo, que la app usa para estimar vencimiento.",
+    "Descarga el Excel para conservar esta consulta."
+   ]
+  ]
+ ],
+ "listas": [
+  [
+   "Editar listas y formato",
+   [
+    "El administrador abre la lista que quiere cambiar y pulsa Editar y ordenar.",
+    "Escribe un valor por línea en el orden deseado y guarda; los documentos anteriores conservan sus valores.",
+    "Para reemplazar un valor en documentos, usa Unir valores, revisa la vista previa y confirma.",
+    "En Formato de OC/OS y firmas, completa los datos de la entidad y las tres firmas y guarda."
+   ]
+  ]
+ ],
+ "usuarios": [
+  [
+   "Administrar acceso",
+   [
+    "El administrador abre Administrar usuarios.",
+    "Revisa la cuenta que la persona creó desde la pantalla de ingreso.",
+    "Elige estado y rol; cada cambio se guarda inmediatamente con los permisos actuales.",
+    "Pulsa Listo para cerrar; tu propia cuenta no se cambia desde estos selectores."
+   ]
+  ]
+ ],
+ "respaldo": [
+  [
+   "Conservar un respaldo",
+   [
+    "Pulsa Respaldo completo para descargar el JSON con colecciones y subcolecciones.",
+    "Guarda el archivo original en un lugar seguro; Exportar todo a Excel sirve para consultar los datos.",
+    "Para restaurar, el administrador usa Importar respaldo y revisa la confirmación antes de reemplazar registros.",
+    "La restauración de una toma anual requiere revisión de actas y fichas y la importación general la rechaza."
+   ]
+  ]
+ ],
+ "inventario": [
+  [
+   "Contar un CR",
+   [
+    "Abre la toma y elige un CR abierto.",
+    "Indica Dónde estoy y selecciona piso y ambiente o un punto del plano.",
+    "Busca el bien por ID o código y registra su resultado; una fila representa una unidad.",
+    "Para registrar varios IDs, usa Registrar IDs por rango y revisa la confirmación.",
+    "Usa Tengo una duda si necesitas una aclaración y registra como sobrante lo que no figura en el listado."
+   ]
+  ],
+  [
+   "Subir la V3",
+   [
+    "Descarga la V3 de la toma y conserva sus 22 columnas.",
+    "Completa cada fila; Encontrado exige cantidad, edificio, piso y ubicación.",
+    "Pulsa Subir V3 llena y elige el archivo.",
+    "Revisa errores, CR cerrados y conteos existentes en la vista previa antes de importar.",
+    "Consulta el resultado y corrige las filas rechazadas para volver a subirlas."
+   ]
+  ],
+  [
+   "Cerrar un CR",
+   [
+    "Revisa el avance, los pendientes y las dudas del CR.",
+    "El administrador abre Cerrar CR y revisa qué fichas se actualizarán; los pendientes quedarán No localizados.",
+    "Resuelve los resultados Por conciliar y confirma las advertencias que indique el diálogo.",
+    "Escribe la confirmación solicitada y ejecuta el cierre.",
+    "Consulta el acta del CR; los demás CR abiertos pueden seguir contándose."
+   ]
+  ]
+ ],
+ "conciliacion": [
+  [
+   "Conciliar con Contabilidad",
+   [
+    "El administrador importa una copia del registro contable y revisa período, filas y avisos antes de guardarla.",
+    "Elige la toma, el registro base y las altas del período que quieras incluir.",
+    "Prepara la comparación y filtra sus clases de diferencias y CR.",
+    "Guarda una nota o una coincidencia para explicar cada caso; esto no regulariza fichas ni conteos.",
+    "Descarga el Excel de diferencias para revisar la consulta."
+   ]
+  ]
+ ],
+ "cierreFormal": [
+  [
+   "Preparar el cierre formal",
+   [
+    "Elige la toma, el registro contable y las altas que correspondan.",
+    "Revisa el checklist de cierres por CR, dudas, conciliación y personas a cargo.",
+    "El administrador puede ajustar responsable y compromiso antes de generar el informe.",
+    "Genera la vista previa, revisa sus pendientes y recomendaciones y guarda una versión fija.",
+    "Cuando corresponda, aprueba la versión y descarga el informe, los Excel y las actas por custodio."
+   ]
+  ]
+ ],
+ "configuracion": [
+  [
+   "Mantener los catálogos",
+   [
+    "Abre el catálogo de espacios, áreas, personas o tipos que necesitas.",
+    "Consulta un registro antes de editarlo; tu cuenta conserva sus permisos actuales.",
+    "Usa Respaldo para descargar una copia completa cuando la necesites."
+   ]
+  ]
+ ]
+};
+const GLOSARIO_UI = {
+ "AF (activo fijo)": "Bien que figura en la lista de activos fijos entregada por el área de Contabilidad.",
+ "BM (bien menor)": "Bien que no figura en esa lista de activos fijos de Contabilidad. También se registra y controla en la app.",
+ "Código ADM": "Código que identifica al bien en el registro administrativo y su etiqueta; no es el código contable.",
+ "Código contable": "Solo para AF: el código con que figura en la lista de Contabilidad. Los bienes menores no lo tienen.",
+ "CR (centro de responsabilidad)": "Referencia contable con la que se agrupan los bienes de la toma. En la toma anual, cada bien conserva su CR fijo.",
+ "Área": "Unidad operativa del catálogo. Puede asociarse a uno o varios CR como referencia y tener una jefatura.",
+ "Custodio": "Persona que usa o tiene a cargo el bien. Puede estar enlazada al catálogo o indicada como texto.",
+ "Sede": "Localidad de la institución que contiene edificios, pisos y ambientes.",
+ "Edificio": "Construcción dentro de una sede; contiene pisos.",
+ "Piso": "Nivel de un edificio; puede tener un plano y varios ambientes.",
+ "Ambiente": "Oficina, aula, almacén u otro espacio dentro de un piso. Puede relacionarse con un ambiente del plano.",
+ "Zona": "Ubicación general dentro de la sede de un sistema o equipo. Por confirmar significa que aún no se indicó.",
+ "Cuadrante": "División de referencia de un plano para ubicar un punto. No sustituye el nombre del ambiente.",
+ "Sistema": "Agrupación de equipos físicos instalados que prestan un servicio al edificio. Su estado depende de sus equipos.",
+ "Equipo": "Unidad física que se mantiene dentro de un sistema. Puede tener respaldo de un bien contable; no entra a la toma como equipo.",
+ "Conjunto por desglosar": "Registro provisional de varios equipos respaldados por un mismo AF. Desglosar crea sus equipos con ese respaldo.",
+ "AF de respaldo": "Bien existente enlazado a un equipo como referencia contable. El vínculo no modifica los importes de su ficha.",
+ "Falla": "Reporte de un problema en uno o varios bienes o equipos, o en un espacio. El administrador lo acepta o descarta.",
+ "OT (orden de trabajo)": "Registro de un mantenimiento previsto, en curso, completado o cancelado. Guarda trabajo, ejecutor, costo y resultado.",
+ "Plan preventivo": "Rutina con alcance, tareas y frecuencia. Generar programación propone visitas y OT que debes confirmar.",
+ "Visita": "Agrupa las OT de un plan para una fecha. Permite completar el trabajo común y registrar excepciones por OT.",
+ "OS (orden de servicio)": "Orden para contratar un servicio. Pasa de borrador a aprobada y después a atendida con conformidad; puede enlazar una OT o visita.",
+ "OC (orden de compra)": "Orden para adquirir bienes. Pasa de borrador a aprobada y después a atendida con conformidad.",
+ "Conformidad": "Confirmación de que se recibió lo indicado en una orden aprobada. La marca como atendida; una OS exige confirmar el acta firmada.",
+ "Toma": "Verificación física de los bienes incluidos en un inventario. Registra resultados, ubicación, cantidades y observaciones.",
+ "V3": "Hoja Excel de la toma con 22 columnas. La app revisa el archivo antes de importar los conteos permitidos.",
+ "Conciliación": "Comparación del inventario con copias del registro contable. Guarda notas y enlaces de aclaración sin regularizar las fichas.",
+ "Cierre formal": "Preparación y aprobación de una versión fija del informe de inventario y sus actas. Los cierres por CR conservan el bloqueo.",
+ "IGV": "Impuesto que la app calcula al 18 % del subtotal de una orden; la opción No afecto lo deja en cero.",
+ "RUC": "Número de 11 dígitos que identifica al proveedor o a la entidad en los documentos.",
+ "CCI": "Código de cuenta interbancaria; se guarda como referencia dentro de las cuentas del proveedor.",
+ "SBP": "Sociedad Bíblica Peruana, entidad que usa este registro de bienes.",
+ "HVAC": "Calefacción, ventilación y aire acondicionado; identifica una especialidad o instalación en el catálogo.",
+ "BTU / kW": "Unidades que puedes escribir como referencia de capacidad de un equipo; la app no las convierte."
+};
+const AYUDA=Object.fromEntries(Object.entries(GUIAS_UI).map(([k,g])=>[k,g.flatMap(([,pasos])=>pasos)]));
+function abrirAyuda(){const nombre=NAVG[grupoDe(S.view)].v.find(([v])=>v===S.view)?.[1]||'Ayuda',guias=GUIAS_UI[S.view==='espacios'&&S.espVista==='planos'?'planos':S.view]||GUIAS_UI.configuracion;$('#ayuda').innerHTML=`<div class="row between"><h2 id="ayuda-titulo">${esc(nombre)}</h2><button class="btn" data-ui="cerrarAyuda" aria-label="Cerrar ayuda">×</button></div><button type="button" class="btn" data-glosario-ui>Glosario</button>${guias.map(([titulo,pasos])=>`<section><h3>Cómo se hace: ${esc(titulo)}</h3><ol>${pasos.map(p=>`<li>${esc(p)}</li>`).join('')}</ol></section>`).join('')}<section id="glosario-ui"><h3>Glosario</h3><dl>${Object.entries(GLOSARIO_UI).map(([t,d])=>`<dt>${esc(t)}</dt><dd>${esc(d)}</dd>`).join('')}</dl></section>${S.view==='inventario'&&S.anCR?`<a href="#casos-toma" data-ui="casos">Casos de la toma: qué hacer</a><details id="casos-toma"><summary>Casos de la toma: qué hacer</summary><p>Hay menos unidades que en el listado: 1 en las filas vistas y 0 con una nota en las demás.</p><p>AF que no está en el listado: va como sobrante, con la serie.</p><p>Bien de otro CR: en su propia fila, con la nota «ubicado en otro CR».</p><p>Bien sin etiqueta: con la nota «sin etiqueta».</p><p>Bien en reparación fuera de la sede: CANTIDAD 1, «Fuera de sede» y la OS o guía de salida.</p><p>Marca, modelo o serie distintos: van en OBSERVACIONES.</p><p>Bien de terceros: como sobrante, con la nota «DE TERCEROS: [dueño] – no dar de alta».</p><p>No usar «Por conciliar» para estos casos: bloquea el cierre del CR.</p></details>`:''}`;$('#ayuda').showModal();$('#ayuda [data-glosario-ui]').addEventListener('click',()=>$('#glosario-ui').scrollIntoView({block:'start'}));}
 // OC/OS vuelve a un solo formulario. Son los mismos nodos y el mismo formCtx.submit.
 const OC_BLOQUES=[['Proveedor y área',['clase','fecha','proveedorId','areaId','mantenimientoId']],['Detalle',[]],['Condiciones',['noAfectoIgv','cotizacion','formaPago','plazoPago','plazoEntrega','lugarEntrega','observaciones']]];
 function ocPasosMontar(o){const m=$('#modal'),body=m.querySelector('.m-b');m.classList.remove('orden-pasos');m.classList.add('v2-orden');for(const [title,keys]of OC_BLOQUES){const block=bloqueFichaUI(title,[]);block.classList.add('v2-oc-block');for(const k of keys){const el=$('#ff-'+k)?.closest('.fld');if(el)block.append(el);}if(title==='Detalle')block.append($('#mextra'));body.insertBefore(block,$('#ferr'));}$('#mok').textContent='Guardar borrador';presentarDialogoUI();}
@@ -5653,6 +5997,512 @@ ACT.espVer = function (id, ...args) {
   );
   return result;
 };
+
+const AYUDA_CAMPOS_UI = {
+ "tipo": "AF: figura en la lista de activos fijos de Contabilidad. BM: no figura en esa lista.",
+ "codCont": "Solo para AF: el código con que figura en la lista de Contabilidad. Los bienes menores no lo tienen.",
+ "codigo": "Identifica el bien en la app y en su etiqueta; debe ser único.",
+ "categoria": "Guarda la categoría escrita; se usa para filtrar bienes y admitir vínculos a sistemas.",
+ "area": "Guarda el área escrita; el CR contable de la toma se conserva por separado.",
+ "sede": "Guarda dónde está el bien. Puedes elegir una sugerencia o escribir la sede y el edificio.",
+ "piso": "Guarda el nivel donde está; usa el mismo nombre que en el plano.",
+ "ambiente": "Guarda la oficina, sala u otro lugar donde está el bien.",
+ "responsable": "Guarda quién usa o custodia el bien; escribir un nombre no crea una persona en el catálogo.",
+ "condicion": "Guarda cómo se conserva: Bueno, Regular, Malo o Por evaluar si aún no lo revisaste.",
+ "oper": "Guarda si funciona: Operativo, Inoperativo, No probado o No aplica.",
+ "serie": "Identifica la unidad física; copia la serie o placa que lleva el bien.",
+ "tipoBienId": "Vincula el tipo del catálogo y sus datos técnicos; vacío conserva la asignación automática si existe.",
+ "areaId": "Vincula el área operativa del catálogo; no cambia el CR contable de la toma.",
+ "custodioId": "Vincula una persona del catálogo; vacío usa el custodio escrito o, si falta, el jefe del área.",
+ "custodioEscrito": "Actualizar copia el nombre elegido; Dejar conserva el texto y muestra ambos datos en la ficha.",
+ "solicitante": "Guarda quién pide el bien; escribir un nombre no crea una cuenta ni una persona.",
+ "justif": "Guarda el motivo del pedido para que se revise antes de aprobar.",
+ "proveedor": "Guarda el proveedor como texto de referencia; las sugerencias no validan un catálogo.",
+ "doc": "Guarda la referencia del documento que aprueba la baja; no adjunta el archivo.",
+ "documento": "Guarda la referencia del documento recibido; no crea una OC ni adjunta archivos.",
+ "motivoCodigo": "Obligatorio al corregir el código contable; queda registrado en el historial.",
+ "valorHist": "Guarda el valor histórico como referencia contable en soles.",
+ "valorNeto": "Guarda el valor neto como referencia contable; no calcula depreciación.",
+ "bienCod": "Elige un código existente para enlazar la OT al bien o al equipo.",
+ "descripcion": "Guarda el trabajo previsto en la OT para quien lo realizará.",
+ "per": "Al completar un preventivo manual, crea otra OT con esa cantidad de meses; vacío no repite.",
+ "fuera": "Sí registra que queda fuera de servicio en esta OT; No registra que puede seguir usándose.",
+ "hechas": "Al marcar confirmas la tarea realizada; debes marcarlas todas para completar.",
+ "trabajo": "Guarda lo que se hizo como resultado de la OT.",
+ "costo": "Guarda el costo operativo en soles en la OT; vacío conserva un costo sin indicar.",
+ "categorias": "Admite esas categorías o secciones al vincular bienes; conserva los vínculos anteriores.",
+ "tipoEq": "Guarda la clase física; Conjunto por desglosar representa varios equipos aún no separados.",
+ "zona": "Guarda la zona del equipo; Por confirmar deja la zona sin indicar.",
+ "capacidad": "Guarda un dato de referencia con su unidad, como BTU o kW; no calcula ni valida la capacidad.",
+ "af": "Vincula un bien existente como respaldo contable del equipo; no cambia sus importes.",
+ "componentes": "Guarda una lista, un componente por línea; no crea equipos ni mantenimiento separado.",
+ "resp": "Guarda el nombre como referencia; no exige una persona del catálogo ni una cuenta.",
+ "sis": "Elige un sistema existente; una opción «se creará» crea ese sistema al guardar el vínculo.",
+ "cant": "Indica cuántas unidades hay; al agregar se redondea y se usa un máximo de 100.",
+ "modo": "Elige qué registros se crearán o qué elementos se incluirán.",
+ "quitar": "Eliminar retira el conjunto después del desglose; Mantener lo conserva para completar lo que falta.",
+ "img": "Guarda una copia comprimida y su proporción; conserva los ambientes ya dibujados.",
+ "f": "Número de filas de la división; combinado con columnas admite entre 2 y 36 partes.",
+ "c": "Número de columnas de la división; combinado con filas admite entre 2 y 36 partes.",
+ "estilo": "Elige los nombres de las partes: números, letras o puntos cardinales solo para 2 × 2.",
+ "o": "Horizontal o vertical determina hacia dónde se dibuja la sublínea.",
+ "alc": "Elige si la sublínea divide la mitad del plano o un solo cuadrante.",
+ "n": "Gira la rosa náutica; no mueve los ambientes ni las ubicaciones guardadas.",
+ "tipoAmbiente": "Guarda la clasificación del ambiente para consultarlo en Espacios.",
+ "alias": "Guarda un nombre por línea para reconocer otras formas de escribirlo.",
+ "activo": "Activo lo ofrece para usarlo; Inactivo lo conserva en el historial y limita nuevas selecciones.",
+ "activa": "Activa la ofrece para nuevas asignaciones; Inactiva conserva sus datos anteriores.",
+ "areas": "Cada casilla vincula esta persona al área elegida; no cambia el área de sus bienes.",
+ "usuarioId": "Guarda el vínculo con una cuenta existente; no crea cuentas ni cambia sus permisos.",
+ "cargo": "Guarda el cargo; también puede mostrarse en firmas y actas donde se usa esta persona.",
+ "sigla": "Guarda una abreviatura para mostrarla junto al nombre del área.",
+ "jefeId": "Guarda la jefatura y la incorpora al área; custodio por defecto si faltan otros datos.",
+ "crs": "Cada CR marcado pasa a esta área si estaba en otra; conserva el CR fijo de la toma.",
+ "destino": "Elige el destino del cambio; revisa qué registro se conservará antes de guardar.",
+ "familia": "Guarda la familia para clasificar los tipos de bien.",
+ "clase": "Guarda AF o BM como sugerencia del tipo; cada bien conserva su clase.",
+ "vidaUtil": "Referencia en años para reposición. La app usa este valor para estimar si el bien alcanzó su vida útil.",
+ "agrupadores": "Cada casilla asigna ese agrupador a este tipo; si estaba en otro, se mueve a este.",
+ "ejecutor": "Persona o proveedor enlaza el catálogo activo; Otro guarda el nombre que escribas sin crear registros.",
+ "tecnico": "Con Otro, guarda este nombre libre; con catálogo, se copia el nombre del registro elegido.",
+ "cuentas": "Una línea por cuenta: banco | cuenta | CCI. Guarda referencias, no realiza pagos.",
+ "ruc": "Guarda el RUC para identificar al proveedor; si lo escribes, debe tener 11 dígitos.",
+ "contacto": "Guarda a quién contactar del proveedor; no crea una persona en el catálogo.",
+ "especialidad": "Guarda la especialidad y la añade a las sugerencias si es nueva.",
+ "sistemaId": "En alcance Por sistema, incluye los equipos de este sistema.",
+ "tiposEquipo": "En Por sistema, filtra por esos códigos; vacío incluye todos los tipos de equipo del sistema.",
+ "frecuenciaMeses": "De 1 a 60 meses. Usa la última realización para proponer la siguiente fecha del plan.",
+ "tareas": "Una por línea. Se copian a las OT generadas y se confirman al completar.",
+ "desde": "Se usa si el objetivo aún no tiene una OT completada; las anteriores usan su última fecha real.",
+ "planes": "Cada casilla incluye ese plan en la vista previa de la programación.",
+ "espacioId": "Vincula un espacio activo al reporte; no se agrega ningún bien a la falla en ese modo.",
+ "prioridad": "Sugiere el plazo: alta 2 días, media 7, baja 30; si editaste el plazo, respeta tu fecha.",
+ "plazo": "Fecha límite del reporte; sirve para mostrarlo atrasado si sigue pendiente después de ese día.",
+ "objetivo": "La nueva OT se enlaza al bien o equipo elegido entre los que ya tiene la falla.",
+ "total": "Guarda el presupuesto general del año; las áreas se registran por separado y no se suman a este monto.",
+ "proveedorId": "Vincula un proveedor activo del catálogo; no crea proveedores desde esta ventana.",
+ "noAfectoIgv": "No: calcula IGV del 18 % sobre el subtotal; Sí: deja el IGV en cero.",
+ "mantenimientoId": "En una OS, enlaza una OT existente; en una OC no se guarda ese enlace.",
+ "cotizacion": "Guarda el número como referencia en la orden y su impresión; no adjunta el archivo.",
+ "formaPago": "Guarda la condición de pago como texto; un valor nuevo se añade a las sugerencias.",
+ "plazoPago": "Guarda el plazo de pago como texto; no programa pagos ni vencimientos.",
+ "plazoEntrega": "Guarda el plazo de entrega como texto; no programa entregas.",
+ "lugarEntrega": "Guarda el lugar indicado en la orden y su impresión.",
+ "actaFirmada": "Al marcar confirmas que recibiste el acta firmada; es obligatorio para dar conformidad a una OS.",
+ "razonSocial": "Guarda el nombre de la entidad que se imprime en órdenes y actas.",
+ "direccion": "Guarda la dirección de la entidad que se imprime en órdenes y actas.",
+ "referencia": "Identifica el contrato o cotización asociado a los planes elegidos.",
+ "planIds": "Cada plan marcado queda asociado al contrato durante su vigencia.",
+ "vigenciaDesde": "Primera fecha en la que se puede elegir el contrato para una visita del plan.",
+ "vigenciaHasta": "Última fecha en la que se puede elegir el contrato para una visita del plan.",
+ "costoPorUnidad": "Costo sin IGV de cada equipo o bien atendido; se copia a las OT y al borrador de OS de la visita.",
+ "condiciones": "Guarda el texto de referencia del contrato; no ejecuta compromisos de pago.",
+ "costoTotal": "Sin contrato, reparte este total sin IGV entre las OT atendidas; las excepciones pueden cambiarlo.",
+ "valores": "Una línea por sugerencia, en ese orden; quitar una línea no cambia los documentos anteriores.",
+ "origen": "Este valor se reemplazará en órdenes, contratos o proveedores que lo usen.",
+ "periodo": "Guarda el período como referencia de esta copia contable para la conciliación.",
+ "estado": "Guarda el estado de la aclaración; no regulariza bienes ni conteos.",
+ "enlace": "Guarda una posible coincidencia como aclaración; no modifica la ficha del bien.",
+ "buscar": "Si escribes aquí, se usa este bien en lugar de la coincidencia elegida en la lista.",
+ "recomendaciones": "Se incluyen en la versión fija del informe; no cambian los datos del inventario.",
+ "compromiso": "Texto que se imprime en las actas de custodia; no cambia los bienes asignados.",
+ "archivo": "Elige el archivo indicado; primero se revisa antes de confirmar su importación.",
+ "vaciar": "Al marcar, elimina los datos del modelo de pruebas antes de copiar; conserva las cuentas de usuarios.",
+ "confirmacion": "Escribe PRUEBAS para autorizar esta carga solo en el proyecto de pruebas."
+};
+const AYUDA_ESPECIAL_UI = {
+ "sDatos": {
+  "proveedor": "Guarda el proveedor como texto de referencia; no exige un proveedor del catálogo."
+ },
+ "nuevoExistente": {
+  "tipo": "AF: figura en la lista de activos fijos de Contabilidad. BM: no figura en esa lista.",
+  "codigo": "Identifica el bien en la app y en su etiqueta; debe ser único."
+ },
+ "alta": {
+  "tipo": "AF: figura en la lista de activos fijos de Contabilidad. BM: no figura en esa lista."
+ },
+ "editar": {
+  "tipo": "AF: figura en la lista de activos fijos de Contabilidad. BM: no figura en esa lista.",
+  "codigo": "Código ADM de solo lectura; al guardar se conserva el identificador actual."
+ },
+ "nuevoReq": {
+  "tipo": "AF: figura en la lista de activos fijos de Contabilidad. BM: no figura en esa lista."
+ },
+ "transferir": {
+  "responsable": "Un nombre del catálogo enlaza la persona; otro se guarda como texto sin crear una persona."
+ },
+ "mNuevo": {
+  "tipo": "Preventivo puede repetirse al completar; Correctivo registra atención a una falla y no se repite."
+ },
+ "fAceptar": {
+  "tipo": "Se guarda como Correctivo en cada OT creada para atender la falla."
+ },
+ "mCompletar": {
+  "condicion": "Se guarda como conservación final en la OT; la ficha del bien no cambia.",
+  "oper": "Se guarda como operatividad final en la OT; la ficha del bien no cambia."
+ },
+ "eEditar": {
+  "cant": "Guarda la cantidad en este equipo; no separa unidades ni genera códigos nuevos."
+ },
+ "plNuevo": {
+  "zona": "Guarda el edificio al que corresponde el plano.",
+  "piso": "Forma parte del identificador del plano; no admite otro igual en ese edificio."
+ },
+ "ambEdit": {
+  "zona": "Guarda el edificio del ambiente; si cambia, se actualizan las fichas ubicadas aquí."
+ },
+ "espNuevo": {
+  "codigo": "Forma el identificador dentro del espacio padre; no se puede cambiar después."
+ },
+ "espEditar": {
+  "alias": "Una forma de escribir el ambiente por línea; sirve para reconocerlo al leer ubicaciones."
+ },
+ "peEditar": {
+  "alias": "Un nombre por línea para vincular custodios escritos; al renombrar conserva el nombre anterior."
+ },
+ "peUnir": {
+  "destino": "Esta persona se conserva; recibe los alias, áreas y vínculos. La de origen queda inactiva y unida."
+ },
+ "peVincularTexto": {
+  "destino": "Se añade el texto como alias de esta persona para reconocer sus bienes."
+ },
+ "prNuevo": {
+  "codigo": "Guarda el código de referencia del proveedor; el identificador PRV se genera por separado."
+ },
+ "prEditar": {
+  "codigo": "Guarda el código de referencia del proveedor; el identificador PRV no cambia."
+ },
+ "ppNuevo": {
+  "tipoBienId": "En alcance Por tipo de bien, incluye bienes de ese tipo.",
+  "modo": "Por tipo incluye sus bienes; Por sistema sus equipos; Solo la lista incluye los añadidos a mano.",
+  "activo": "Activo se ofrece para generar programación; Inactivo conserva las OT anteriores."
+ },
+ "ppEditar": {
+  "tipoBienId": "En alcance Por tipo de bien, incluye bienes de ese tipo.",
+  "modo": "Por tipo incluye sus bienes; Por sistema sus equipos; Solo la lista incluye los añadidos a mano.",
+  "activo": "Activo se ofrece para generar programación; Inactivo conserva las OT anteriores."
+ },
+ "fReportar": {
+  "modo": "Bienes enlaza de 1 a 50 bienes o equipos; Espacio enlaza un solo lugar activo.",
+  "texto": "Guarda el problema reportado con hasta 500 caracteres; queda pendiente de aceptación."
+ },
+ "ocNueva": {
+  "clase": "OC registra una compra; OS un servicio y permite enlazar una OT.",
+  "areaId": "Guarda el área solicitante; en una OS se requiere para aprobar y firmar la conformidad."
+ },
+ "ocEditar": {
+  "clase": "OC registra una compra; OS un servicio y permite enlazar una OT.",
+  "areaId": "Guarda el área solicitante; en una OS se requiere para aprobar y firmar la conformidad."
+ },
+ "ocConformidad": {
+  "texto": "Guarda la conformidad y marca la orden como atendida."
+ },
+ "ocConfig": {
+  "ruc": "Guarda el RUC que se imprime en las órdenes; debe tener 11 dígitos."
+ },
+ "ctNuevo": {
+  "areaId": "Se copia al borrador de OS de la visita; su jefatura firma el acta de conformidad."
+ },
+ "ctEditar": {
+  "areaId": "Se copia al borrador de OS de la visita; su jefatura firma el acta de conformidad."
+ },
+ "viCompletar": {
+  "trabajo": "Guarda el trabajo común en la visita y en cada OT atendida.",
+  "hechas": "Cada tarea marcada se da por realizada en todas las OT atendidas."
+ },
+ "listaUnir": {
+  "destino": "Sustituye al valor de origen en los documentos de la vista previa; se conserva en la lista."
+ },
+ "uImportar": {
+  "f": "Elige el JSON del respaldo completo; revisa los registros antes de confirmar el reemplazo."
+ }
+};
+const NOTAS_FORM_UI = {
+ "nuevoReq": "Registra una necesidad. Al guardar queda pendiente de aprobación.",
+ "nuevoExistente": "Registra un bien que ya está en uso; al guardar se crea su ficha y su historial de alta.",
+ "aprobar": "Al aprobar, el requerimiento pasa a pendiente de adquisición.",
+ "rechazar": "Guarda el motivo y marca el requerimiento como rechazado.",
+ "recibir": "Guarda la recepción en almacén; luego puedes darle de alta.",
+ "alta": "Guarda código, ubicación y custodio; el bien queda en uso.",
+ "transferir": "Actualiza la ficha y su historial; conserva el CR fijo de la toma.",
+ "condicion": "Guarda conservación y operatividad del bien con una observación en el historial.",
+ "solBaja": "Guarda una solicitud de baja y su sustento; queda pendiente de aprobación.",
+ "aprobarBaja": "Guarda destino y fecha; el bien queda dado de baja.",
+ "rechazarBaja": "Guarda el motivo de rechazo y devuelve el bien a uso o mantenimiento.",
+ "editar": "Corrige los datos de la ficha; ubicación, custodio y estado tienen acciones separadas.",
+ "registroDuplicado": "Guarda el motivo de la marca de duplicado; revisa el efecto en las tomas abiertas antes de confirmar.",
+ "eliminar": "Al confirmar se elimina el registro y sus mantenimientos asociados.",
+ "asignarOperativos": "Vincula el tipo, el área y la persona del catálogo al bien.",
+ "datosTecnicos": "Guarda los datos técnicos de esta ficha según los campos definidos para su tipo.",
+ "mNuevo": "Crea una orden de trabajo con la fecha, el objetivo y el ejecutor elegidos.",
+ "mIniciar": "Inicia la OT y guarda si el objetivo queda fuera de servicio durante el trabajo.",
+ "mCancelar": "Guarda el motivo y cancela esta OT; el historial se conserva.",
+ "mCompletar": "Completa la OT con trabajo, costo y estado final; conserva el estado de la ficha del bien.",
+ "sCategorias": "Define qué categorías se admiten al vincular bienes a sistemas; revisa la vista previa antes de guardar.",
+ "sOtro": "Crea un sistema de tipo Otro con el nombre y la justificación escritos.",
+ "sDatos": "Guarda los datos de referencia del sistema; no cambia sus equipos.",
+ "eVincular": "Crea un equipo respaldado por el bien elegido y registra el vínculo en su historial.",
+ "afSistema": "Vincula este bien a un sistema creando un equipo con su respaldo.",
+ "eAgregar": "Crea los equipos físicos indicados para mantenimiento; no entran a la toma.",
+ "eDesglosar": "Crea equipos con el mismo respaldo del conjunto; elige si conservar o retirar el conjunto.",
+ "eEditar": "Guarda los datos de este equipo y su historial; el código permanece igual.",
+ "eEstado": "Guarda conservación y operatividad del equipo con una observación en su historial.",
+ "eEliminar": "Elimina este equipo; el bien que lo respalda se conserva.",
+ "plNuevo": "Crea un plano de ese piso; después puedes dibujar sus ambientes.",
+ "plImagen": "Guarda la imagen del plano y su proporción; los ambientes dibujados se conservan.",
+ "ambEdit": "Guarda los datos del ambiente; si cambian, actualiza las fichas que lo usan.",
+ "ambDividir": "Crea partes iguales dentro del ambiente; revisa si se conserva el ambiente original.",
+ "subNueva": "Agrega una línea de referencia dentro de los cuadrantes del plano.",
+ "cuadNorte": "Guarda la orientación de la rosa náutica para los planos.",
+ "cuadNombres": "Guarda los nombres de los cuatro cuadrantes sin mover sus límites.",
+ "espSembrar": "Crea los espacios que faltan desde los planos; revisa el catálogo propuesto.",
+ "espNuevo": "Crea un espacio dentro del lugar elegido; su código formará parte del identificador.",
+ "espEditar": "Guarda los datos del espacio; su identificador permanece igual.",
+ "orgSembrar": "Crea las áreas y personas propuestas desde los CR y los custodios escritos.",
+ "arNueva": "Crea un área operativa con sus CR de referencia y jefatura.",
+ "arEditar": "Guarda los datos del área, su jefatura y sus CR de referencia.",
+ "peNueva": "Crea una persona y la vincula a las áreas marcadas; no crea una cuenta de acceso.",
+ "peEditar": "Guarda la persona, sus áreas y alias; no cambia los permisos de su cuenta.",
+ "peUnir": "Une dos registros de la misma persona y conserva el registro elegido como destino.",
+ "peVincularTexto": "Guarda el texto como alias de una persona registrada para reconocer sus bienes.",
+ "tbSembrar": "Crea tipos desde los agrupadores con valores iniciales editables; los bienes se conservan.",
+ "tbNuevo": "Crea un tipo de bien; después puedes definir los datos técnicos que pedirá cada ficha.",
+ "tbEditar": "Guarda la clasificación del tipo y sus agrupadores; los datos individuales se editan en cada bien.",
+ "tbAtributos": "Define los campos que aparecerán en Datos técnicos de cada bien de este tipo.",
+ "prNuevo": "Crea un proveedor con sus datos de contacto y cuentas de referencia.",
+ "prEditar": "Guarda los datos del proveedor; no cambia las órdenes anteriores.",
+ "prDesactivar": "Retira el proveedor de nuevas selecciones; conserva sus órdenes anteriores.",
+ "ppNuevo": "Crea un plan con alcance, tareas y frecuencia; la programación se confirma por separado.",
+ "ppEditar": "Guarda el plan; las nuevas OT se crean desde Generar programación.",
+ "ppGenerar": "Prepara las visitas y OT propuestas; solo se crean al confirmar la vista previa.",
+ "fReportar": "Guarda el reporte y sus objetivos; el administrador deberá aceptarlo para crear las OT.",
+ "fAceptar": "Al confirmar, acepta la falla y crea una OT correctiva por cada objetivo.",
+ "fNuevaOT": "Crea otra OT enlazada a esta falla para continuar su atención.",
+ "fSeguimiento": "Consulta los objetivos de la falla y sus OT y OS enlazadas; cerrar no guarda cambios.",
+ "fVerOT": "Consulta el estado y el trabajo de esta OT; sus acciones abren otra ventana.",
+ "fEditarPlazo": "Guarda la fecha límite del reporte; cambia cuándo se muestra como atrasado.",
+ "fDescartar": "Guarda el motivo y marca el reporte como descartado.",
+ "presEditar": "Guarda el presupuesto general y los montos por área del año elegido.",
+ "ocNueva": "Guarda una OC o una OS en borrador; la aprobación asigna el número y cierra su contenido.",
+ "ocEditar": "Guarda los cambios del borrador; todavía no aprueba ni numera la orden.",
+ "ocAprobar": "Al aprobar asigna el número y deja cerrado el contenido de la orden.",
+ "ocConformidad": "Guarda la conformidad y marca la orden aprobada como atendida.",
+ "ocAnular": "Guarda el motivo y marca la orden como anulada; conserva su registro.",
+ "ocConfig": "Guarda los datos de la entidad y las tres firmas para imprimir órdenes y actas.",
+ "ocVer": "Consulta la orden y sus acciones disponibles; cerrar no guarda cambios.",
+ "eqCargar": "Revisa el Excel de equipos; solo la confirmación de la vista previa crea los registros válidos.",
+ "ctNuevo": "Crea un contrato de mantenimiento asociado a los planes elegidos durante su vigencia.",
+ "ctEditar": "Guarda el contrato para futuras visitas; las visitas ya creadas conservan sus datos.",
+ "viCompletar": "Completa las OT atendidas; cancela las no atendidas con motivo y guarda el resultado de la visita.",
+ "viVer": "Consulta las OT de esta visita; sus acciones permiten completar, editar o cancelar cada OT.",
+ "viIniciar": "Inicia la visita y todas sus OT programadas.",
+ "viEditarOT": "Guarda el trabajo previsto, la fecha y el costo operativo de esta OT.",
+ "viCantidad": "Actualiza la cantidad y el anexo de la OS en borrador según las OT no canceladas.",
+ "listaEditar": "Guarda las sugerencias y su orden; los documentos anteriores conservan sus valores.",
+ "listaUnir": "Prepara el reemplazo de un valor por otro; solo se aplica al confirmar la vista previa.",
+ "rcImportar": "Revisa una copia contable; confirma su vista previa para guardarla sin cambiar las fichas.",
+ "cfConfig": "Guarda el responsable y el compromiso que se imprimen en informes y actas.",
+ "cfGenerar": "Prepara una versión del informe; revisa sus pendientes antes de guardarla.",
+ "uResponsablesCR": "Guarda el custodio por defecto de cada CR para la lectura de la toma.",
+ "uUsuarios": "Los cambios de estado y rol se guardan al elegirlos; Listo solo cierra la ventana.",
+ "uImportar": "Revisa un respaldo JSON antes de reemplazar los registros con el mismo identificador."
+};
+function ayudaCampoUI(act,f){if(/^dato\d+$/.test(f.k))return 'Guarda este dato solo en la ficha de este bien; usa las opciones y la unidad definidas para su tipo.';if(/^area\d+$/.test(f.k))return 'Guarda el presupuesto de esta área; no modifica el presupuesto general del año.';if(/^cr\d+$/.test(f.k))return 'Guarda el custodio por defecto de este CR; vacío lo deja sin responsable.';if(/^(cargo|nombre)\d+$/.test(f.k))return 'Se imprime en esta posición de firma en órdenes y actas.';if(/^n\d+$/.test(f.k))return 'Guarda el nombre de este cuadrante sin mover sus límites.';return AYUDA_ESPECIAL_UI[act]?.[f.k]||AYUDA_CAMPOS_UI[f.k]||f.help||'';}
+function opcionesAyudaUI(act,f){
+ const porCampo={
+  tipo:{AF:'AF: figura en la lista de activos fijos de Contabilidad',BM:'BM: no figura en esa lista'},
+  modo:act==='fReportar'?{bienes:'Uno o varios bienes: enlaza de 1 a 50 bienes o equipos',espacio:'Algo del local (un espacio): enlaza un lugar activo'}:/^pp/.test(act)?{tipo:'Por tipo de bien: incluye bienes de ese tipo',sistema:'Por sistema: incluye equipos de ese sistema',lista:'Solo la lista incluida: usa los añadidos a mano'}:{},
+  prioridad:{alta:'Alta: sugiere plazo de 2 días',media:'Media: sugiere plazo de 7 días',baja:'Baja: sugiere plazo de 30 días'},
+  clase:/^oc(Nueva|Editar)$/.test(act)?{OC:'Orden de compra (OC): registra una compra',OS:'Orden de servicio (OS): registra un servicio y permite enlazar una OT'}:{AF:'AF: sugerido para bienes de la lista de Contabilidad',BM:'BM: sugerido para bienes fuera de esa lista'},
+  quitar:{si:'Eliminarlo al terminar: retira el conjunto después del desglose',no:'Mantenerlo: conserva el conjunto porque faltan equipos'},
+  custodioEscrito:{actualizar:'Actualizar: copia también el nombre al custodio escrito',dejar:'Dejar: conserva el custodio escrito y muestra ambos datos'},
+  noAfectoIgv:{no:'No: aplicar IGV 18 %',si:'Sí: IGV 0'},
+  estado:{pendiente:'Pendiente: queda por revisar',aclarado:'Aclarado: registra la explicación','para regularizar':'Para regularizar: deja constancia sin cambiar fichas'},
+ };
+ const mapa=porCampo[f.k]||{};
+ return f.opts?.map(o=>{const [valor,label,...rest]=Array.isArray(o)?o:[o,o];return [valor,mapa[valor]||label,...rest];});
+}
+function ayudarFormularioUI(o,act){
+ const fields=o.fields.map(f=>{
+  const help=ayudaCampoUI(act,f),opts=opcionesAyudaUI(act,f);
+  return {...f,...(help?{help}:{}),...(opts?{opts}:{})};
+ });
+ // La nota existente contiene advertencias, tablas y acciones: se conserva completa.
+ const texto=o.title==='Crear espacio: elige dónde'?'Elige dónde crear el espacio. Continuar abre el alta existente; el reporte de falla aún no se guarda.':NOTAS_FORM_UI[act]||(fields.length?'Completa los datos de esta ventana y confirma para guardar el cambio indicado.':'Consulta los datos y las acciones disponibles; cerrar no guarda cambios.');
+ const note='<p class="nota-ayuda-ui">'+esc(texto)+'</p>'+(o.note||'');
+ return {...o,fields,note};
+}
+function ponerAyudaControlUI(el,texto){
+ if(!el||el.dataset.ayudadoUI)return;el.dataset.ayudadoUI='true';const h=document.createElement('small');h.className='help';h.id='ayuda-control-'+(++ponerAyudaControlUI.n);h.textContent=texto;el.setAttribute('aria-describedby',h.id);if(el.matches('[data-an],[data-az]')){const wrap=document.createElement('div');wrap.className='fld';el.before(wrap);wrap.append(el,h);}else if(el.nextElementSibling?.classList.contains('sug'))el.nextElementSibling.after(h);else el.after(h);
+}
+ponerAyudaControlUI.n=0;
+function ayudarControlesPropiosUI(){
+ const m=$('#modal'),v=VENTANAS_UI;if(!m.open||!v.actual||v.actual.protegida||v.protegida)return;
+ if(v.actual.ficha&&!m.querySelector('.nota-ayuda-ui')){const nota=document.createElement('p');nota.className='nota-ayuda-ui';nota.textContent='Consulta la ficha y sus acciones disponibles; cerrar no guarda cambios.';m.querySelector('.m-b')?.prepend(nota);}
+ for(const fld of m.querySelectorAll('.fld')){const el=fld.querySelector('.inp,input[type=checkbox]'),help=fld.querySelector('.help');if(el&&help){if(!help.id)help.id='ayuda-control-'+(++ponerAyudaControlUI.n);el.setAttribute('aria-describedby',help.id);}}
+ for(const [selector,ayuda]of Object.entries({
+  '[data-an]':'Guarda este nombre en los pisos marcados; actualiza las fichas y conteos que usan el ambiente.',
+  '[data-az]':'Guarda el edificio en los pisos marcados; actualiza las fichas y conteos de esos ambientes.',
+  '#an-pl':'Filtra los ambientes visibles por piso; no cambia los pisos marcados ni lo que se guardará.',
+  '#f-buscar':'Busca y agrega de 1 a 50 bienes o equipos existentes; Quitar solo los retira del reporte.',
+  '#pp-buscar':'Busca un bien o equipo para incluirlo o excluirlo del alcance del plan.',
+  '[data-oc-item=cantidad]':'Se multiplica por el precio unitario; debe ser mayor que cero.',
+  '[data-oc-item=unidad]':'Unidad del ítem, por ejemplo Und o Servicio; un valor nuevo se añade a las sugerencias.',
+  '[data-oc-item=precioUnit]':'Precio por unidad sin IGV en soles; se usa para calcular el subtotal.',
+  '[data-oc-buscar]':'Vincula un bien existente a este ítem; no modifica su ficha.',
+  '[data-vi-modo]':'Atendido completa esta OT; No atendido la cancela y exige un motivo.',
+  '[data-vi-motivo]':'Si no se atendió, guarda el motivo de cancelación de esta OT.',
+  '[data-vi-costo]':'Sustituye el costo contractual o repartido solo para esta OT; importe sin IGV.',
+  '#vi-buscar':'Filtra las filas visibles; al completar también se procesan las filas ocultas.',
+  '#tb-attr [name=t]':'Texto permite escribir; Número registra una cifra; Lista limita las opciones; Fecha elige un día.',
+  '#tb-attr [name=o]':'Solo para Lista: escribe al menos dos opciones separadas por comas.',
+  '#tb-attr [name=u]':'Se muestra junto al nombre del dato en la ficha del bien.',
+  '#tb-attr [name=r]':'Al marcar, cada ficha de este tipo exigirá completar este dato.',
+  '[data-usr=activo]':'Se guarda al elegir: Activo habilita acceso; Desactivado impide entrar a la app.',
+  '[data-usr=rol]':'Se guarda al elegir: Usuario usa sus acciones; Administrador puede administrar catálogos y aprobaciones.',
+ }))for(const el of m.querySelectorAll(selector))ponerAyudaControlUI(el,ayuda);
+ for(const el of m.querySelectorAll('[data-ao]')){const label=el.closest('label');if(!label.dataset.ayudaPisoUI){label.dataset.ayudaPisoUI='true';const texto=label.lastChild;if(texto?.nodeType===3)texto.textContent=' Aplicar el cambio en '+texto.textContent.trim();}}
+ if(m.querySelector('[data-form=ambnom]')&&!m.querySelector('.nota-ayuda-ui')){const nota=document.createElement('p');nota.className='nota-ayuda-ui';nota.textContent='Guarda el nombre y edificio en los pisos marcados; actualiza las fichas y conteos que usan esos ambientes.';m.querySelector('.m-b').prepend(nota);}
+ if(m.querySelector('#tb-attr')&&!m.querySelector('.nota-ayuda-ui')){const nota=document.createElement('p');nota.className='nota-ayuda-ui';nota.textContent=NOTAS_FORM_UI.tbAtributos;m.querySelector('.m-b').prepend(nota);}
+}
+// También se aplica a los controles que se añaden después de abrir el formulario.
+const dialogoAntesAyudaUI=presentarDialogoUI;
+presentarDialogoUI=function(...args){const r=dialogoAntesAyudaUI.apply(this,args);ayudarControlesPropiosUI();return r;};
+
+/* Ajustes 1b: presentación y borradores de ventanas, solo en memoria. */
+const VENTANAS_UI = {pila:[], actual:null, entrada:null, diferida:null, accion:null, restaurando:false, protegida:false, atajo:null};
+// Estos recorridos conservan sus formularios y su navegación de main.
+const TOMA_ACT_UI = new Set(['igAbrir','igFicha','igLote','igRevertir','grVer','grEditar','grAgrupador','grRegistrar','grExportar','tNueva','tNoLoc','tDetalle','tCerrar','tSobrante','tSobReg','tSobEdit','tSobBorrar','tEliminar','tRevertir','tRegistrarIDs','tExcelImportar','tExcelPlantilla','tExcelConsol','tExcelZebra','tFormato71','tDudas','tDudaFicha','tDudaNueva','dResponder','dAbrirBien','dVer','srVarios','plElegir','ambPick','plPick','anCerrar','anContinuar','anRevertir','anReabrir','anFinalizar','anIncorporar','anSobrante','anSobCR','anNueva','anActas','anConciliar','tMoverConflicto']);
+for(const a of ['openToma','tVolver','tRapido','tQuitar','tSobDel','tCopiar','importar','goBienes','tVista','srUno','srSobrante','tFiltros','tLimpiarF','hListo','v3GuardarTexto','v3AceptarSugerencia','v3Ficha','igVista','anVer','anTodos','anDescargar','anSobAsignar'])TOMA_ACT_UI.add(a);
+const TOMA_TITULOS_UI=new Set(['Bien ya registrado','Conteos de otras personas conservados','Vista previa del grupo','Vista previa del lote','Revertir lote','Nueva toma de inventario','Marcar como no localizado','Cerrar toma de inventario','Registrar bien no encontrado en el registro','Registrar sobrante como bien','Eliminar toma de inventario','Revertir cierre interrumpido','Cantidad de etiquetas del grupo','Cargar Formato 7.1 (datos contables)','Vista previa del Formato 7.1','Registrar IDs','Confirmar IDs de campo','Código desconocido','Subir hoja de la toma (V3)','Dar de alta una unidad sobrante','Descargar hoja de la toma (V3)','Reimprimir etiquetas Zebra','Confirmar archivo Zebra','Excel descargado con referencias incompletas','Consolidado para auditoría','Cerrar CR','Continuar cierre del CR','Revertir cierre incompleto del CR','Reabrir CR','Finalizar toma anual','Incorporar bien o resolver CR','Registrar sobrante del CR','Asignar sobrante a CR','Tengo una duda','Responder duda']);
+const REDIBUJOS_UI = new Set(['tbAttrAgregar','tbAttrQuitar','tbAttrMover','fAgregar','fQuitar','ocAgregarItem','ocQuitarItem','ppIncluir','ppExcluir','ppQuitar']);
+function capturarVentanaUI(){
+ const m=$('#modal');if(!m.open||!VENTANAS_UI.actual||VENTANAS_UI.actual.protegida)return null;
+ return {nodos:[...m.childNodes],clase:m.className,datos:{...m.dataset},ctx:formCtx,sesion:VENTANAS_UI.actual,foco:document.activeElement,scroll:m.querySelector('.m-b')?.scrollTop||0,
+  borradores:Object.fromEntries(['fDraft','ppDraft','tbDraft','ocFormVisita','ocFormFalla','_an','anEd','anPl'].map(k=>[k,structuredClone(S[k])]))};
+}
+function iniciarVentanaUI(sesion){
+ const v=VENTANAS_UI;
+ if(sesion.protegida)v.pila=[];
+ if(!v.restaurando&&!sesion.protegida){const padre=v.entrada||v.diferida;if(padre&&$('#modal').open){v.pila.push(padre);}else v.pila=[];}
+ v.entrada=null;v.diferida=null;v.actual=sesion;
+}
+function vigenteVentanaUI(s){
+ if(s.act==='ambEdit'&&s.pl)return !!S.data.planos[s.pl]?.ambientes?.some(a=>a.id===s.id);
+ const col={eEditar:'equipos',editar:'bienes',tbEditar:'tiposBien',prEditar:'proveedores',arEditar:'areas',peEditar:'personas',espEditar:'espacios'}[s.act];
+ return !col||!s.id||!!S.data[col]?.[s.id]&&!S.data[col][s.id]._del;
+}
+function restaurarVentanaUI(guardada=false){
+ const v=VENTANAS_UI,m=$('#modal');let padre=v.pila.pop();
+ if(v.atajo){const a=v.atajo;padre=v.pila[a.indice]||padre;v.pila.splice(a.indice);if(guardada&&a.tipo==='espacio')a.id=VENTANAS_UI.actual.id+'-'+safeId(String($('#ff-codigo').value).trim().toUpperCase());v.atajo=null;if(padre)padre.resultado={guardada,id:a.id,tipo:a.tipo};}
+ while(padre&&!vigenteVentanaUI(padre.sesion))padre=v.pila.pop();
+ if(!padre){v.actual=null;if(m.open)m.close();return;}
+ v.restaurando=true;v.entrada=null;v.diferida=null;
+ try{
+  Object.assign(S,padre.borradores);formCtx=padre.ctx;v.actual=padre.sesion;m.className=padre.clase;
+  for(const k of Object.keys(m.dataset))delete m.dataset[k];Object.assign(m.dataset,padre.datos);m.replaceChildren(...padre.nodos);
+  // Las fichas se construyen con el estado actual; los formularios mantienen sus nodos y escuchas.
+  if(padre.sesion.ficha&&UI_NAV.record&&location.hash===padre.sesion.hash){const anterior=UI_NAV.applying;UI_NAV.applying=true;UI_NAV.pendingRecord=true;try{doRender();abrirRegistroRutaActualUI();}finally{UI_NAV.applying=anterior;}}
+  if(!m.open)m.showModal();m.querySelector('#mok')?.removeAttribute('disabled');
+  if(padre.resultado?.guardada&&padre.resultado.id){const r=padre.resultado;if(r.tipo==='bien'){if(!S.fDraft.includes(r.id))S.fDraft.push(r.id);fallaSeleccionPintar();}else{const select=$('#ff-espacioId');if(select&&!select.querySelector(`option[value="${CSS.escape(r.id)}"]`))select.add(new Option(espacioNombre(r.id),r.id));if(select)select.value=r.id;}}
+  aplicarPermisos();presentarDialogoUI();if(m.querySelector('.m-b'))m.querySelector('.m-b').scrollTop=padre.scroll;
+  if(padre.foco?.isConnected)padre.foco.focus({preventScroll:true});else m.querySelector('.inp,button')?.focus({preventScroll:true});
+ }finally{v.restaurando=false;}
+}
+const abrirFormularioAntesAjustesUI=openForm;
+openForm=function(opciones){
+ const v=VENTANAS_UI,act=v.accion||accionActual||v.actual?.act||'',protegida=v.protegida||TOMA_ACT_UI.has(act)||TOMA_TITULOS_UI.has(opciones.title);
+ const sesion={act,id:v.id,pl:v.elemento?.dataset?.pl,protegida,hash:location.hash,ficha:!opciones.fields.length&&!!UI_NAV.record&&UI_NAV.applying,guardada:false};
+ if(opciones.title==='Resultado de la carga en pruebas'&&!protegida&&$('#modal').open&&!v.restaurando)v.entrada=capturarVentanaUI();
+ iniciarVentanaUI(sesion);
+ const o=protegida?opciones:ayudarFormularioUI(opciones,act);
+ abrirFormularioAntesAjustesUI(o);
+ if(!protegida){const original=formCtx.submit;formCtx.submit=async function(vals){const padre=capturarVentanaUI();v.entrada=padre;try{const r=await original(vals);sesion.guardada=!r?.error&&!r?.keep;if(r?.keep&&v.actual===sesion)v.diferida=padre;return r;}finally{v.entrada=null;}};}
+};
+// Ventanas con HTML propio: no tocar los formularios de la toma.
+for(const [nombre,original] of Object.entries({tbAttrPintar,usuariosModal,ambNombresModal,showCopy})){
+ const abrir=function(...args){const v=VENTANAS_UI;if(v.protegida||TOMA_ACT_UI.has(accionActual)||v.actual?.protegida)return original(...args);if(nombre==='showCopy'&&$('#modal').open)v.entrada=capturarVentanaUI();const redibujo=nombre==='tbAttrPintar'&&v.actual?.act==='tbAtributos';if(!redibujo)iniciarVentanaUI({act:v.accion||nombre,id:v.id,hash:location.hash,protegida:false,ficha:false});const r=original(...args);ayudarControlesPropiosUI();return r;};
+ if(nombre==='tbAttrPintar')tbAttrPintar=abrir;else if(nombre==='usuariosModal')usuariosModal=abrir;else if(nombre==='ambNombresModal')ambNombresModal=abrir;else showCopy=abrir;
+}
+for(const [act,original] of Object.entries(ACT)){
+ if(TOMA_ACT_UI.has(act))continue;
+ ACT[act]=function(id,el,...args){
+  const v=VENTANAS_UI,anterior={accion:v.accion,id:v.id,elemento:v.elemento,protegida:v.protegida,entrada:v.entrada};
+  v.accion=act;v.id=id;v.elemento=el;v.protegida=v.protegida||TOMA_ACT_UI.has(act);
+  if(!v.protegida&&!REDIBUJOS_UI.has(act)&&$('#modal').open&&!v.restaurando&&(v.actual?.ficha||$('#modal').querySelector(`[data-act="${act}"]`)))v.entrada=capturarVentanaUI();
+  let pendiente=false;const terminar=()=>{v.accion=anterior.accion;v.id=anterior.id;v.elemento=anterior.elemento;v.protegida=anterior.protegida;v.entrada=anterior.entrada;};
+  try{const r=original.call(this,id,el,...args);if(['arVer','peVer','espVer'].includes(act)&&$('#modal').open&&!v.actual)iniciarVentanaUI({act,id,protegida:false,hash:location.hash,ficha:!!UI_NAV.record&&UI_NAV.applying,guardada:false});if(act==='fReportar'&&$('#ff-texto'))atajosFallaUI();if(!v.protegida)ayudarControlesPropiosUI();if(r?.then){pendiente=true;return Promise.resolve(r).finally(terminar);}return r;}
+  finally{if(!pendiente)terminar();}
+ };
+}
+const cerrarModalAntesAjustesUI=ACT.closeModal;
+ACT.closeModal=function(...args){const v=VENTANAS_UI;if(v.pila.length&&!v.actual?.protegida&&!S.busy&&!S.cierreRun)return restaurarVentanaUI(false);return cerrarModalAntesAjustesUI.apply(this,args);};
+// Captura antes del atajo global de rutas: Escape de un hijo vuelve al padre.
+window.addEventListener('keydown',e=>{const v=VENTANAS_UI,m=$('#modal');if(e.key!=='Escape'||!m.open||!v.pila.length||v.actual?.protegida||S.busy||S.cierreRun)return;if([...m.querySelectorAll('.sug:not([hidden])')].some(el=>el.getClientRects().length)||m.querySelector('details.menu[open]'))return;e.preventDefault();e.stopImmediatePropagation();restaurarVentanaUI(false);},true);
+$('#modal').addEventListener('cancel',e=>{if(VENTANAS_UI.pila.length&&!VENTANAS_UI.actual?.protegida&&!S.busy&&!S.cierreRun){e.preventDefault();e.stopImmediatePropagation();restaurarVentanaUI(false);}},true);
+$('#modal').addEventListener('close',e=>{const v=VENTANAS_UI;if(v.pila.length&&!v.actual?.protegida){e.stopImmediatePropagation();const guardada=v.actual?.guardada||v.actual?.act==='tbAtributos';restaurarVentanaUI(guardada);}else if(!$('#modal').open){v.actual=null;v.entrada=null;v.diferida=null;}},true);
+const rutaAntesAjustesUI=rutaUI;
+rutaUI=function(...args){if(args[0]&&UI_NAV.current?.hash===location.hash)return;const v=VENTANAS_UI;v.pila=[];v.actual=null;v.entrada=null;v.diferida=null;v.atajo=null;return rutaAntesAjustesUI.apply(this,args);};
+const bienAntesAtajoUI=openBien;
+openBien=function(id,...args){if(VENTANAS_UI.atajo?.tipo==='bien'&&VENTANAS_UI.actual?.act==='nuevoExistente'){VENTANAS_UI.atajo.id=id;return;}return bienAntesAtajoUI.call(this,id,...args);};
+function atajosFallaUI(){
+ if($('#f-atajo-bien'))return;
+ const bien=document.createElement('button');bien.type='button';bien.id='f-atajo-bien';bien.className='btn link';bien.dataset.act='fRegistrarBienUI';bien.textContent='¿No está registrado? Registrar bien';$('#f-bienes').append(bien);
+ if(S.admin&&!S.readonly){const espacio=document.createElement('button');espacio.type='button';espacio.id='f-atajo-espacio';espacio.className='btn link';espacio.dataset.act='fCrearEspacioUI';espacio.textContent='¿No está el espacio? Crear espacio';$('#ff-espacioId').closest('.fld').append(espacio);}
+}
+function salirFallaUI(tipo){
+ exigirEscritura();if(tipo==='espacio')exigirAdmin();if(tipo==='bien'&&S.fDraft.length>=50){toast('Ya elegiste 50 bienes o equipos. Quita uno del reporte antes de registrar y elegir otro.');return;}
+ if(($('#ff-texto')?.value.trim()||$('#f-buscar')?.value.trim())&&!confirm('Vas a abrir otra ventana. Se conservará lo escrito y volverás al reporte al guardar o cancelar. ¿Continuar?'))return;
+ const v=VENTANAS_UI,padre=capturarVentanaUI();v.atajo={tipo,indice:v.pila.length};v.entrada=padre;
+ if(tipo==='bien')return ACT.nuevoExistente();
+ const padres=espacios().filter(e=>e.activo!==false&&ESP_HIJO[e.nivel]);
+ openForm({title:'Crear espacio: elige dónde',note:'Elige el lugar que contendrá el espacio nuevo. Después se abrirá el alta de espacios existente.',fields:[{k:'padre',l:'Dentro de',t:'select',req:true,opts:[['','Elige sede, edificio o piso'],...padres.map(e=>[e.id,espRuta(e).join(' → ')])],help:'Una sede permite crear un edificio; un edificio, un piso; un piso, un ambiente.'}],ok:'Continuar',submit:async vals=>{exigirAdmin();const p=S.data.espacios[vals.padre];if(!p||p.activo===false||!ESP_HIJO[p.nivel])return {error:'Elige una sede, edificio o piso activo.'};ACT.espNuevo(vals.padre);return {keep:true};}});
+}
+ACT.fRegistrarBienUI=()=>salirFallaUI('bien');
+ACT.fCrearEspacioUI=()=>salirFallaUI('espacio');
+
+const AYUDA_CONSULTAS_UI={
+ "situacion-bienes": "Todos muestra el registro completo; Para reponer muestra los bienes de la consulta de reposición.",
+ "f-area-operativa": "Filtra por el área operativa del catálogo; no cambia el CR contable ni las asignaciones.",
+ "f-verif": "Filtra según la última verificación física registrada en la ficha.",
+ "f-grupo": "Muestra solo la categoría elegida; no cambia la clasificación de los bienes.",
+ "f-ubic": "Muestra solo los bienes de la sede elegida.",
+ "f-cond": "Muestra solo los bienes con la conservación elegida.",
+ "f-etapa": "Filtra por la etapa de alta, uso o baja del bien.",
+ "f-tipo": "Muestra AF o BM según la clase guardada en cada bien.",
+ "b-orden": "Cambia el orden de la lista; conserva los datos de cada bien.",
+ "pe-area": "Filtra por las áreas de la persona; Sin área muestra a quienes no tienen ninguna.",
+ "tb-fam": "Muestra solo los tipos de bien de la familia elegida.",
+ "m-plan": "Muestra las OT o visitas del plan elegido.",
+ "m-tipo": "Filtra por mantenimiento preventivo o correctivo; no cambia las OT.",
+ "m-ejecutor": "Muestra las OT o visitas asignadas al ejecutor elegido.",
+ "costos-grupo": "Agrupa los gastos del período por el criterio elegido; no cambia los costos guardados.",
+ "eco-desde": "Primer mes incluido en el detalle de gastos del año elegido.",
+ "eco-hasta": "Último mes incluido en el detalle de gastos del año elegido.",
+ "costos-anio": "Consulta presupuesto y gastos de ese año; Editar presupuesto guarda solo en el año elegido.",
+ "oc-clase": "Muestra órdenes de compra (OC), de servicio (OS) o ambas.",
+ "oc-estado": "Muestra órdenes en borrador, aprobadas, atendidas o anuladas según el filtro.",
+ "oc-proveedor": "Muestra solo las órdenes del proveedor elegido.",
+ "oc-anio": "Muestra solo las órdenes de ese año.",
+ "rc-toma": "Usa los bienes y conteos de la toma elegida para preparar la comparación.",
+ "rc-base": "Usa esta copia contable como base de la comparación; no modifica las fichas.",
+ "rc-cr": "Limita la consulta al CR elegido; Todos los CR muestra la toma completa.",
+ "rc-clase": "Muestra los casos de la clase de conciliación elegida.",
+ "cf-toma": "Prepara el informe con los datos de la toma elegida.",
+ "cf-base": "Incluye esta copia contable en el informe; sin registro se muestran los datos físicos.",
+ "cf-area": "Filtra las actas por el área elegida; no reasigna los bienes.",
+ "cf-cr": "Filtra las actas por el CR elegido; no cambia su pertenencia."
+};
+function ayudarConsultaUI(){if(S.view==='inventario')return;for(const [id,texto]of Object.entries(AYUDA_CONSULTAS_UI)){const el=document.getElementById(id);if(el&&$('#main').contains(el)){el.title=texto;el.setAttribute('aria-description',texto);}}for(const el of document.querySelectorAll('#main [data-rc-alta]'))ponerAyudaControlUI(el,'Al marcar, incluye esta copia de altas en la comparación.');for(const el of document.querySelectorAll('#main [data-cf-alta]'))ponerAyudaControlUI(el,'Al marcar, incluye esta copia de altas en el informe.');}
+// Solo la consulta se ajusta al espacio visible; planoHtml, editor y toma se conservan.
+function ajustarPlanoConsultaUI(){
+ const caja=document.querySelector('[data-plano-consulta]');if(!caja)return;const plano=caja.querySelector('.plano');if(!plano)return;
+ const [w,h=1]=plano.style.aspectRatio.split('/').map(Number),ar=w/h||1.6,alto=Math.max(80,innerHeight-caja.getBoundingClientRect().top-16),ancho=Math.min(caja.clientWidth,alto*ar);
+ plano.style.width=ancho+'px';plano.style.margin='0 auto';
+}
+const pantallaAntesAjustesUI=presentarPantalla;
+presentarPantalla=function(...args){const r=pantallaAntesAjustesUI.apply(this,args);ayudarConsultaUI();requestAnimationFrame(ajustarPlanoConsultaUI);return r;};
+window.addEventListener('resize',ajustarPlanoConsultaUI);
 
 route();
 (async ()=>{
